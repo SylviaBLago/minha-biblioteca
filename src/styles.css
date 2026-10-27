@@ -420,3 +420,158 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================
+   AUTENTICAÇÃO — MINHA BIBLIOTECA
+   ========================================= */
+
+.login-pagina,
+.tela-carregamento {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(
+    135deg,
+    #e5e9da 0%,
+    #f7f3eb 55%,
+    #ead9c6 100%
+  );
+}
+
+.login-cartao {
+  width: 100%;
+  max-width: 440px;
+  padding: 45px;
+  background: #fffdf8;
+  border: 1px solid #e9dfd0;
+  border-radius: 24px;
+  box-shadow: 0 18px 55px rgba(53, 79, 61, 0.09);
+  text-align: center;
+}
+
+.login-icone {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 25px;
+  border-radius: 50%;
+  background: #e5e9da;
+  color: #354f3d;
+}
+
+.login-cartao h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  color: #354f3d;
+  margin: 12px 0;
+}
+
+.login-descricao {
+  color: #82766b;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 30px;
+}
+
+.login-formulario {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 10px;
+}
+
+.login-formulario label {
+  color: #354f3d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.login-campo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 15px;
+  border: 1px solid #d9d1c4;
+  border-radius: 11px;
+  background: white;
+  margin-bottom: 12px;
+  color: #738a70;
+}
+
+.login-campo:focus-within {
+  border-color: #738a70;
+}
+
+.login-campo input {
+  width: 100%;
+  height: 46px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: #3d342e;
+}
+
+.login-botao {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 48px;
+}
+
+.login-botao:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.login-erro {
+  color: #a33e35;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.login-rodape {
+  margin: 30px 0 0;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: #82766b;
+}
+
+.botao-sair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #e6ebe1;
+  text-align: left;
+}
+
+.botao-sair:hover {
+  background: #48634e;
+}
+
+.tela-carregamento {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: #354f3d;
+}
+
+@media (max-width: 480px) {
+  .login-cartao {
+    padding: 32px 24px;
+  }
+
+  .login-cartao h1 {
+    font-size: 30px;
+  }
+}

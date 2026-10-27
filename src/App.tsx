@@ -1,4 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { LogOut } from 'lucide-react';
+import Login from './components/Login';
+import { supabase } from './services/supabase';
 import {
   BookOpen,
   LibraryBig,
@@ -21,6 +25,42 @@ type Pagina =
 
 export default function App() {
   const [pagina, setPagina] = useState<Pagina>('inicio');
+  const [sessao, setSessao] = useState<Session | null>(null);
+const [verificando, setVerificando] = useState(true);
+
+useEffect(() => {
+  let ativo = true;
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (ativo) {
+      setSessao(data.session);
+      setVerificando(false);
+    }
+  }).catch(() => {
+    if (ativo) setVerificando(false);
+  });
+
+  const { data: { subscription } } =
+    supabase.auth.onAuthStateChange((_evento, novaSessao) => {
+      if (ativo) {
+        setSessao(novaSessao);
+        setVerificando(false);
+      }
+    });
+
+  return () => {
+    ativo = false;
+    subscription.unsubscribe();
+  };
+}, []);
+
+async function sair() {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    window.alert('Não foi possível encerrar a sessão.');
+  }
+}
 
   const menu = [
     { id: 'inicio', nome: 'Início', icone: BookOpen },
@@ -47,6 +87,17 @@ export default function App() {
   };
 
   return (
+    if (verificando) {
+  return (
+    <div className="tela-carregamento">
+      <p>📚 Abrindo sua biblioteca...</p>
+    </div>
+  );
+}
+
+if (!sessao) {
+  return <Login />;
+}
     <div className="aplicativo">
       <aside className="barra-lateral">
         <div className="marca">
@@ -77,9 +128,13 @@ export default function App() {
         </nav>
 
         <div className="rodape-menu">
-          <p>🍂 Um livro de cada vez.</p>
-        </div>
-      </aside>
+  <button className="botao-sair" onClick={sair}>
+    <LogOut size={18} />
+    Sair da biblioteca
+  </button>
+
+  <p>🍂 Um livro de cada vez.</p>
+</div>
 
       <main className="conteudo">
         <header className="cabecalho">
