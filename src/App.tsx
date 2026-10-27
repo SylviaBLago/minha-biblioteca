@@ -36,13 +36,16 @@ type Pagina =
 
 export default function App() {
 
-  // Controle da navegação
   const [pagina, setPagina] = useState<Pagina>('inicio');
 
-  // Controle da autenticação
   const [sessao, setSessao] = useState<Session | null>(null);
   const [verificando, setVerificando] = useState(true);
   const [recuperandoSenha, setRecuperandoSenha] = useState(false);
+
+  // Modo local temporário
+  const [modoLocal, setModoLocal] = useState(
+    () => sessionStorage.getItem('biblioteca_modo_local') === 'true'
+  );
 
   // ==========================================
   // VERIFICAR SESSÃO DO SUPABASE
@@ -77,17 +80,17 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-  (evento, novaSessao) => {
-    if (!ativo) return;
+      (evento, novaSessao) => {
+        if (!ativo) return;
 
-    if (evento === 'PASSWORD_RECOVERY') {
-      setRecuperandoSenha(true);
-    }
+        if (evento === 'PASSWORD_RECOVERY') {
+          setRecuperandoSenha(true);
+        }
 
-    setSessao(novaSessao);
-    setVerificando(false);
-  }
-);
+        setSessao(novaSessao);
+        setVerificando(false);
+      }
+    );
 
     return () => {
       ativo = false;
@@ -96,10 +99,28 @@ export default function App() {
   }, []);
 
   // ==========================================
+  // ENTRAR NO MODO LOCAL
+  // ==========================================
+
+  function entrarModoLocal() {
+    sessionStorage.setItem('biblioteca_modo_local', 'true');
+    setModoLocal(true);
+    setPagina('inicio');
+  }
+
+  // ==========================================
   // ENCERRAR SESSÃO
   // ==========================================
 
   async function sair() {
+
+    if (modoLocal) {
+      sessionStorage.removeItem('biblioteca_modo_local');
+      setModoLocal(false);
+      setPagina('inicio');
+      return;
+    }
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -141,7 +162,7 @@ export default function App() {
   // TELA DE CARREGAMENTO
   // ==========================================
 
-  if (verificando) {
+  if (verificando && !modoLocal) {
     return (
       <div className="tela-carregamento">
         <p>📚 Abrindo sua biblioteca...</p>
@@ -150,23 +171,29 @@ export default function App() {
   }
 
   // ==========================================
-  // TELA DE LOGIN
+  // RECUPERAÇÃO DE SENHA
   // ==========================================
 
-  if (recuperandoSenha) {
-  return (
-    <RecuperarSenha
-      aoConcluir={() => {
-        setRecuperandoSenha(false);
-        setSessao(null);
-      }}
-    />
-  );
-}
+  if (recuperandoSenha && !modoLocal) {
+    return (
+      <RecuperarSenha
+        aoConcluir={() => {
+          setRecuperandoSenha(false);
+          setSessao(null);
+        }}
+      />
+    );
+  }
 
-if (!sessao) {
-  return <Login />;
-}
+  // ==========================================
+  // LOGIN
+  // ==========================================
+
+  if (!sessao && !modoLocal) {
+    return (
+      <Login aoEntrarLocal={entrarModoLocal} />
+    );
+  }
 
   // ==========================================
   // INTERFACE PRINCIPAL
@@ -214,7 +241,9 @@ if (!sessao) {
             onClick={sair}
           >
             <LogOut size={18} />
-            Sair da biblioteca
+            {modoLocal
+              ? 'Sair do modo local'
+              : 'Sair da biblioteca'}
           </button>
 
           <p>🍂 Um livro de cada vez.</p>
@@ -231,7 +260,9 @@ if (!sessao) {
 
           <div>
             <span className="subtitulo">
-              MINHA BIBLIOTECA
+              {modoLocal
+                ? 'MINHA BIBLIOTECA · MODO LOCAL'
+                : 'MINHA BIBLIOTECA'}
             </span>
 
             <h2>{titulos[pagina]}</h2>

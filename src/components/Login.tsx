@@ -3,15 +3,18 @@ import {
   BookOpen,
   LockKeyhole,
   Mail,
+  LibraryBig,
 } from 'lucide-react';
 
 import { supabase } from '../services/supabase';
 
-export default function Login() {
+interface LoginProps {
+  aoEntrarLocal: () => void;
+}
 
-  // ==========================================
-  // ESTADOS
-  // ==========================================
+export default function Login({
+  aoEntrarLocal,
+}: LoginProps) {
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -23,7 +26,7 @@ export default function Login() {
   const [mensagem, setMensagem] = useState('');
 
   // ==========================================
-  // LOGIN
+  // LOGIN SUPABASE
   // ==========================================
 
   async function entrar(
@@ -79,12 +82,9 @@ export default function Login() {
     setMensagem('');
 
     try {
-
-      // Endereço do aplicativo no GitHub Pages
       const enderecoRetorno =
         `${window.location.origin}${import.meta.env.BASE_URL}`;
 
-      // Solicitar email de recuperação
       const { error } =
         await supabase.auth.resetPasswordForEmail(
           email.trim(),
@@ -94,8 +94,6 @@ export default function Login() {
         );
 
       if (error) {
-
-        // Informações para diagnóstico
         console.error('Erro de recuperação:', {
           mensagem: error.message,
           codigo: error.code,
@@ -107,15 +105,12 @@ export default function Login() {
         );
 
       } else {
-
         setMensagem(
           'Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.'
         );
-
       }
 
     } catch (error) {
-
       console.error(
         'Erro inesperado na recuperação:',
         error
@@ -126,14 +121,12 @@ export default function Login() {
       );
 
     } finally {
-
       setCarregando(false);
-
     }
   }
 
   // ==========================================
-  // ALTERNAR ENTRE LOGIN E RECUPERAÇÃO
+  // ALTERNAR LOGIN / RECUPERAÇÃO
   // ==========================================
 
   function alternarRecuperacao() {
@@ -153,13 +146,9 @@ export default function Login() {
 
       <div className="login-cartao">
 
-        {/* ÍCONE */}
-
         <div className="login-icone">
           <BookOpen size={32} />
         </div>
-
-        {/* TÍTULO */}
 
         <span className="subtitulo">
           SEU REFÚGIO LITERÁRIO
@@ -177,8 +166,6 @@ export default function Login() {
             : 'Entre, acomode-se e continue sua jornada entre histórias.'}
         </p>
 
-        {/* FORMULÁRIO */}
-
         <form
           className="login-formulario"
           onSubmit={
@@ -188,14 +175,11 @@ export default function Login() {
           }
         >
 
-          {/* EMAIL */}
-
           <label htmlFor="login-email">
             Email
           </label>
 
           <div className="login-campo">
-
             <Mail size={18} />
 
             <input
@@ -209,20 +193,15 @@ export default function Login() {
               autoComplete="email"
               required
             />
-
           </div>
-
-          {/* SENHA */}
 
           {!recuperando && (
             <>
-
               <label htmlFor="login-senha">
                 Senha
               </label>
 
               <div className="login-campo">
-
                 <LockKeyhole size={18} />
 
                 <input
@@ -236,53 +215,35 @@ export default function Login() {
                   autoComplete="current-password"
                   required
                 />
-
               </div>
-
             </>
           )}
 
-          {/* MENSAGEM DE ERRO */}
-
           {erro && (
-            <p
-              className="login-erro"
-              role="alert"
-            >
+            <p className="login-erro" role="alert">
               {erro}
             </p>
           )}
 
-          {/* MENSAGEM DE SUCESSO */}
-
           {mensagem && (
-            <p
-              className="login-sucesso"
-              role="status"
-            >
+            <p className="login-sucesso" role="status">
               {mensagem}
             </p>
           )}
-
-          {/* BOTÃO PRINCIPAL */}
 
           <button
             type="submit"
             className="botao-primario login-botao"
             disabled={carregando}
           >
-
             {carregando
               ? 'Aguarde...'
               : recuperando
                 ? 'Enviar link de recuperação'
                 : 'Entrar na minha biblioteca'}
-
           </button>
 
         </form>
-
-        {/* ALTERNAR TELA */}
 
         <button
           type="button"
@@ -290,14 +251,58 @@ export default function Login() {
           onClick={alternarRecuperacao}
           disabled={carregando}
         >
-
           {recuperando
             ? '← Voltar ao login'
             : 'Esqueci minha senha'}
-
         </button>
 
-        {/* RODAPÉ */}
+        {/* ACESSO LOCAL */}
+
+        {!recuperando && (
+          <>
+            <div
+              style={{
+                margin: '24px 0 16px',
+                textAlign: 'center',
+                color: '#777',
+                fontSize: '13px',
+              }}
+            >
+              ────── ou ──────
+            </div>
+
+            <button
+              type="button"
+              className="botao-secundario"
+              onClick={aoEntrarLocal}
+              disabled={carregando}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+              }}
+            >
+              <LibraryBig size={18} />
+              Continuar no modo local
+            </button>
+
+            <p
+              style={{
+                fontSize: '12px',
+                textAlign: 'center',
+                color: '#777',
+                marginTop: '12px',
+                lineHeight: '1.6',
+              }}
+            >
+              Acesse sua biblioteca sem conexão com o
+              Supabase. Os livros serão armazenados
+              neste navegador.
+            </p>
+          </>
+        )}
 
         <p className="login-rodape">
           🍂 Um cantinho especial para suas histórias.
