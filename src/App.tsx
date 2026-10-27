@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { LogOut } from 'lucide-react';
-import Login from './components/Login';
-import { supabase } from './services/supabase';
+
 import {
   BookOpen,
   LibraryBig,
@@ -12,7 +10,15 @@ import {
   Sparkles,
   Plus,
   Search,
+  LogOut,
 } from 'lucide-react';
+
+import Login from './components/Login';
+import { supabase } from './services/supabase';
+
+// ============================================
+// TIPOS
+// ============================================
 
 type Pagina =
   | 'inicio'
@@ -23,44 +29,83 @@ type Pagina =
   | 'estatisticas'
   | 'descobrir';
 
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
+
 export default function App() {
+
+  // Controle da navegação
   const [pagina, setPagina] = useState<Pagina>('inicio');
+
+  // Controle da autenticação
   const [sessao, setSessao] = useState<Session | null>(null);
-const [verificando, setVerificando] = useState(true);
+  const [verificando, setVerificando] = useState(true);
 
-useEffect(() => {
-  let ativo = true;
+  // ==========================================
+  // VERIFICAR SESSÃO DO SUPABASE
+  // ==========================================
 
-  supabase.auth.getSession().then(({ data }) => {
-    if (ativo) {
-      setSessao(data.session);
-      setVerificando(false);
-    }
-  }).catch(() => {
-    if (ativo) setVerificando(false);
-  });
+  useEffect(() => {
+    let ativo = true;
 
-  const { data: { subscription } } =
-    supabase.auth.onAuthStateChange((_evento, novaSessao) => {
-      if (ativo) {
-        setSessao(novaSessao);
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (!ativo) return;
+
+        if (error) {
+          console.error('Erro ao verificar sessão:', error);
+          setSessao(null);
+        } else {
+          setSessao(data.session);
+        }
+
         setVerificando(false);
+      })
+      .catch((error) => {
+        console.error('Erro de autenticação:', error);
+
+        if (ativo) {
+          setSessao(null);
+          setVerificando(false);
+        }
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_evento, novaSessao) => {
+        if (ativo) {
+          setSessao(novaSessao);
+          setVerificando(false);
+        }
       }
-    });
+    );
 
-  return () => {
-    ativo = false;
-    subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      ativo = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-async function sair() {
-  const { error } = await supabase.auth.signOut();
+  // ==========================================
+  // ENCERRAR SESSÃO
+  // ==========================================
 
-  if (error) {
-    window.alert('Não foi possível encerrar a sessão.');
+  async function sair() {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      window.alert(
+        'Não foi possível encerrar a sessão. Tente novamente.'
+      );
+    }
   }
-}
+
+  // ==========================================
+  // MENU DE NAVEGAÇÃO
+  // ==========================================
 
   const menu = [
     { id: 'inicio', nome: 'Início', icone: BookOpen },
@@ -86,22 +131,40 @@ async function sair() {
     descobrir: 'Descubra sua próxima leitura',
   };
 
-  return (
-    if (verificando) {
-  return (
-    <div className="tela-carregamento">
-      <p>📚 Abrindo sua biblioteca...</p>
-    </div>
-  );
-}
+  // ==========================================
+  // TELA DE CARREGAMENTO
+  // ==========================================
 
-if (!sessao) {
-  return <Login />;
-}
+  if (verificando) {
+    return (
+      <div className="tela-carregamento">
+        <p>📚 Abrindo sua biblioteca...</p>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // TELA DE LOGIN
+  // ==========================================
+
+  if (!sessao) {
+    return <Login />;
+  }
+
+  // ==========================================
+  // INTERFACE PRINCIPAL
+  // ==========================================
+
+  return (
     <div className="aplicativo">
+
+      {/* MENU LATERAL */}
+
       <aside className="barra-lateral">
+
         <div className="marca">
           <span className="marca-icone">📚</span>
+
           <div>
             <h1>Minha Biblioteca</h1>
             <p>Um universo de histórias</p>
@@ -128,18 +191,32 @@ if (!sessao) {
         </nav>
 
         <div className="rodape-menu">
-  <button className="botao-sair" onClick={sair}>
-    <LogOut size={18} />
-    Sair da biblioteca
-  </button>
 
-  <p>🍂 Um livro de cada vez.</p>
-</div>
+          <button
+            className="botao-sair"
+            onClick={sair}
+          >
+            <LogOut size={18} />
+            Sair da biblioteca
+          </button>
+
+          <p>🍂 Um livro de cada vez.</p>
+
+        </div>
+
+      </aside>
+
+      {/* CONTEÚDO PRINCIPAL */}
 
       <main className="conteudo">
+
         <header className="cabecalho">
+
           <div>
-            <span className="subtitulo">MINHA BIBLIOTECA</span>
+            <span className="subtitulo">
+              MINHA BIBLIOTECA
+            </span>
+
             <h2>{titulos[pagina]}</h2>
           </div>
 
@@ -154,14 +231,23 @@ if (!sessao) {
             <Plus size={18} />
             Adicionar livro
           </button>
+
         </header>
+
+        {/* PÁGINA INICIAL */}
 
         {pagina === 'inicio' ? (
           <>
-            <section className="boas-vindas">
-              <span className="etiqueta">🍃 SUA JORNADA LITERÁRIA</span>
 
-              <h3>Todo livro é uma nova descoberta.</h3>
+            <section className="boas-vindas">
+
+              <span className="etiqueta">
+                🍃 SUA JORNADA LITERÁRIA
+              </span>
+
+              <h3>
+                Todo livro é uma nova descoberta.
+              </h3>
 
               <p>
                 Organize suas leituras, guarde suas impressões e
@@ -174,9 +260,11 @@ if (!sessao) {
               >
                 Explorar minha estante →
               </button>
+
             </section>
 
             <section className="indicadores">
+
               <div className="indicador">
                 <span>Livros na biblioteca</span>
                 <strong>0</strong>
@@ -200,14 +288,23 @@ if (!sessao) {
                 <strong>0</strong>
                 <small>Próximas descobertas</small>
               </div>
+
             </section>
+
           </>
         ) : null}
 
+        {/* ESTANTE */}
+
         <section className="secao-estante">
+
           <div className="secao-titulo">
+
             <div>
-              <span className="subtitulo">SUA COLEÇÃO</span>
+              <span className="subtitulo">
+                SUA COLEÇÃO
+              </span>
+
               <h3>
                 {pagina === 'inicio'
                   ? 'Minha estante'
@@ -219,16 +316,24 @@ if (!sessao) {
               <Search size={18} />
               Buscar
             </button>
+
           </div>
 
-          <div className="estado-vazio">
-            <div className="estado-vazio-icone">📖</div>
+          {/* BIBLIOTECA VAZIA */}
 
-            <h3>Uma estante esperando histórias...</h3>
+          <div className="estado-vazio">
+
+            <div className="estado-vazio-icone">
+              📖
+            </div>
+
+            <h3>
+              Uma estante esperando histórias...
+            </h3>
 
             <p>
-              Sua biblioteca ainda está vazia. Que tal começar
-              adicionando um livro especial?
+              Sua biblioteca ainda está vazia.
+              Que tal começar adicionando um livro especial?
             </p>
 
             <button
@@ -242,9 +347,13 @@ if (!sessao) {
               <Plus size={18} />
               Adicionar meu primeiro livro
             </button>
+
           </div>
+
         </section>
+
       </main>
+
     </div>
   );
 }
