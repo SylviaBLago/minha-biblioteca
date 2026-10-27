@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import Login from './components/Login';
+import RecuperarSenha from './components/RecuperarSenha';
 import { supabase } from './services/supabase';
 
 // ============================================
@@ -41,6 +42,7 @@ export default function App() {
   // Controle da autenticação
   const [sessao, setSessao] = useState<Session | null>(null);
   const [verificando, setVerificando] = useState(true);
+  const [recuperandoSenha, setRecuperandoSenha] = useState(false);
 
   // ==========================================
   // VERIFICAR SESSÃO DO SUPABASE
@@ -75,13 +77,17 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_evento, novaSessao) => {
-        if (ativo) {
-          setSessao(novaSessao);
-          setVerificando(false);
-        }
-      }
-    );
+  (evento, novaSessao) => {
+    if (!ativo) return;
+
+    if (evento === 'PASSWORD_RECOVERY') {
+      setRecuperandoSenha(true);
+    }
+
+    setSessao(novaSessao);
+    setVerificando(false);
+  }
+);
 
     return () => {
       ativo = false;
@@ -147,9 +153,20 @@ export default function App() {
   // TELA DE LOGIN
   // ==========================================
 
-  if (!sessao) {
-    return <Login />;
-  }
+  if (recuperandoSenha) {
+  return (
+    <RecuperarSenha
+      aoConcluir={() => {
+        setRecuperandoSenha(false);
+        setSessao(null);
+      }}
+    />
+  );
+}
+
+if (!sessao) {
+  return <Login />;
+}
 
   // ==========================================
   // INTERFACE PRINCIPAL
