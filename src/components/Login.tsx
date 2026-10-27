@@ -54,9 +54,16 @@ export default function Login() {
       );
 
       if (error) {
-        setErro(
-          'Não foi possível enviar a solicitação. Tente novamente mais tarde.'
-        );
+  console.error('Erro de recuperação:', {
+    mensagem: error.message,
+    codigo: error.code,
+    status: error.status,
+  });
+
+  setErro(
+    'Não foi possível enviar o email. Consulte o erro no console.'
+  );
+};
       } else {
         setMensagem(
           'Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.'
