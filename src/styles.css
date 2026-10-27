@@ -575,3 +575,36 @@ button:focus-visible {
     font-size: 30px;
   }
 }
+
+/* Recuperação de senha */
+
+.login-link {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: #354f3d;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.login-link:hover {
+  color: #738a70;
+}
+
+.login-link:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.login-sucesso {
+  padding: 12px;
+  border-radius: 10px;
+  background: #e5e9da;
+  color: #354f3d;
+  font-size: 13px;
+  line-height: 1.6;
+}
