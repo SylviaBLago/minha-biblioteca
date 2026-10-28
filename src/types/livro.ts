@@ -9,6 +9,10 @@ export interface Livro {
   paginas: number | null;
   capa: string;
   formato: FormatoLivro;
+  /** Lista dos formatos que a pessoa possui; ausente nos backups antigos. */
+  formatos?: FormatoLivro[];
+  /** Ausente nos backups antigos (considera-se que possui o formato antigo). */
+  possui?: boolean;
   status: StatusLivro;
   desejo: boolean;
   favorito: boolean;
@@ -25,3 +29,8 @@ export const ROTULOS_STATUS: Record<StatusLivro, string> = {
   pausado: 'Pausado',
   abandonado: 'Abandonado',
 };
+
+export function formatosDoLivro(livro: Pick<Livro, 'formato' | 'formatos' | 'possui'>): FormatoLivro[] {
+  if (livro.formatos) return livro.formatos;
+  return livro.possui === false ? [] : [livro.formato];
+}
