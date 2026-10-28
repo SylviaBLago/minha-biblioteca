@@ -647,3 +647,18 @@ button:focus-visible {
 .modal-acoes { display: flex; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid #e9dfd0; }
 @media (max-width: 760px) { .cabecalho-acoes { width: 100%; } .modal-livro { padding: 22px 18px; } .formulario-grade { grid-template-columns: 1fr; } }
 @media (max-width: 420px) { .cabecalho-acoes button { flex: 1; } .modal-acoes { flex-direction: column-reverse; } }
+
+/* Confirmação de possíveis livros repetidos */
+.aviso-duplicidade-fundo { z-index: 1200; }
+.aviso-duplicidade { width: min(100%, 650px); max-height: 90vh; overflow-y: auto; border-radius: 22px; background: #fffdf8; padding: 28px; box-shadow: 0 20px 70px rgba(0,0,0,.18); color: #3d342e; }
+.aviso-duplicidade h2 { font: 600 27px 'Playfair Display', serif; color: #354f3d; margin: 8px 0 0; }
+.aviso-duplicidade p { font-size: 13px; color: #64594f; line-height: 1.65; }
+.duplicatas-lista { display: grid; gap: 10px; margin: 20px 0; }
+.duplicata-item { display: flex; align-items: center; gap: 13px; background: #f7f3eb; border: 1px solid #e9dfd0; border-radius: 12px; padding: 13px; color: #738a70; }
+.duplicata-info { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.duplicata-info strong { font: 600 17px 'Playfair Display', serif; color: #354f3d; }
+.duplicata-info span, .duplicata-info small { font-size: 12px; color: #64594f; }
+.duplicata-detalhes { border-radius: 12px; padding: 16px; background: #e5e9da; margin-bottom: 16px; }
+.duplicata-detalhes h3 { font: 600 19px 'Playfair Display', serif; margin: 0 0 8px; color: #354f3d; }
+.duplicata-acoes { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; border-top: 1px solid #e9dfd0; padding-top: 18px; }
+@media(max-width: 560px) { .aviso-duplicidade { padding: 20px; } .duplicata-item { flex-wrap: wrap; } .duplicata-acoes button { flex: 1; } }
