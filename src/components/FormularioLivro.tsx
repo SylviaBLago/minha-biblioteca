@@ -44,6 +44,8 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!dados.titulo.trim() || !dados.autor.trim()) return;
+    const retirados = livro ? formatosDoLivro(livro).filter(f => !(dados.formatos ?? []).includes(f)) : [];
+    if (retirados.length && !window.confirm('Confirma a retirada dos formatos selecionados? Os exemplares serão removidos, mas o livro e seu histórico de leitura permanecerão.')) return;
     aoSalvar({ ...dados, titulo: dados.titulo.trim(), autor: dados.autor.trim(), genero: dados.genero.trim(), capa: dados.capa.trim() });
   }
 
@@ -63,10 +65,8 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
             <div className="campo-livro"><label>Exemplares que possuo</label>
               <div className="formulario-opcoes formulario-posse">
                 {(['fisico', 'ebook'] as FormatoLivro[]).map(formato => {
-                  const existentes = livro ? formatosDoLivro(livro) : [];
                   const marcado = (dados.formatos ?? []).includes(formato);
                   return <label key={formato}><input type="checkbox" checked={marcado}
-                    disabled={existentes.includes(formato)}
                     onChange={e => {
                       const formatos = e.target.checked
                         ? [...new Set([...(dados.formatos ?? []), formato])]
