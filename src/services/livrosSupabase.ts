@@ -135,8 +135,9 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
   const leitura = leituras[0];
   const atuais: FormatoLivro[] = [...new Set(exemplares.map(e => e.formato).filter((f): f is FormatoLivro => f === 'fisico' || f === 'ebook'))];
   const solicitados = [...new Set(dados.formatos ?? (dados.possui === false ? [] : [dados.formato]))];
-  if (atuais.some(formato => !solicitados.includes(formato)))
-    throw new Error('A retirada de exemplares existentes ainda não está habilitada. Mantenha os formatos já cadastrados para preservar o histórico.');
+  if (exemplares.length >= 100)
+    throw new Error('Quantidade elevada de exemplares: confira os dados antes de editar.');
+  const remover = exemplares.filter(e => !solicitados.includes(e.formato as FormatoLivro));
   const adicionar = solicitados.filter(formato => !atuais.includes(formato));
   const avaliacoes = await obter('avaliacoes', 'leitura_id', String(leitura.id));
   if (avaliacoes.length > 1 || desejos.length > 1)
@@ -174,4 +175,10 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
       .eq('usuario_id', usuarioId).eq('id', String(desejos[0].id));
     if (error) throw new EdicaoParcialError('lista de desejos', error);
   }
+  for (const exemplar of remover) {
+    const { error } = await supabase.from('exemplares').delete()
+      .eq('id', String(exemplar.id)).eq('livro_id', id).eq('usuario_id', usuarioId);
+    if (error) throw new EdicaoParcialError('retirada de exemplar', error);
+  }
+
 }
