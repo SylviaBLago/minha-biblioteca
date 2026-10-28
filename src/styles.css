@@ -662,3 +662,33 @@ button:focus-visible {
 .duplicata-detalhes h3 { font: 600 19px 'Playfair Display', serif; margin: 0 0 8px; color: #354f3d; }
 .duplicata-acoes { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; border-top: 1px solid #e9dfd0; padding-top: 18px; }
 @media(max-width: 560px) { .aviso-duplicidade { padding: 20px; } .duplicata-item { flex-wrap: wrap; } .duplicata-acoes button { flex: 1; } }
+
+
+/* Cartões — hierarquia editorial, metadados separados e avaliação destacada */
+.grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 22px; align-items: stretch; }
+.cartao-livro { display: flex; flex-direction: column; min-width: 0; border-radius: 20px; transition: transform .18s ease, box-shadow .18s ease; }
+.cartao-livro:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(53,79,61,.09); }
+.capa-livro { height: 238px; flex: none; }
+.cartao-livro-corpo { flex: 1; align-items: stretch; gap: 0; padding: 19px; }
+.cartao-livro-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 14px; }
+.cartao-livro-formato, .cartao-livro-desejo { display: inline-flex; align-items: center; border-radius: 999px; background: #e9efdf; color: #354f3d; padding: 6px 10px; font-size: 11px; font-weight: 700; }
+.cartao-livro-desejo { background: #f5e8e4; color: #895a50; }
+.cartao-livro-identidade { min-height: 96px; }
+.cartao-livro h4 { font-size: 20px; line-height: 1.28; margin: 0 0 8px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.cartao-livro-identidade p { font-size: 13px; line-height: 1.45; color: #766d63; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.cartao-livro-metadados { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 14px 0; border-top: 1px solid #eee7dc; }
+.cartao-status { padding: 6px 9px; font-size: 11px; font-weight: 700; border-radius: 7px; color: #536d51; background: #edf1e8; }
+.cartao-status--lendo { color: #365e77; background: #e8f1f6; }
+.cartao-status--concluido { color: #446c47; background: #e1eee1; }
+.cartao-status--pausado { color: #856c40; background: #f5eddf; }
+.cartao-status--abandonado { color: #885953; background: #f5e8e4; }
+.cartao-livro-genero { min-width: 0; max-width: 100%; font-size: 11px; color: #766d63; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cartao-livro-avaliacao { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border-top: 1px solid #eee7dc; padding: 13px 0; }
+.cartao-livro-nota { display: inline-flex; align-items: baseline; gap: 4px; font-size: 16px; color: #b98b2a; }
+.cartao-livro-nota strong { font-family: 'DM Sans', sans-serif; font-size: 17px; color: #354f3d; }
+.cartao-livro-nota span { font-size: 11px; color: #82766b; }
+.cartao-livro-favorito { background: #faeae5; color: #8f564d; padding: 6px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.cartao-livro-rodape { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid #eee7dc; }
+.cartao-livro-rodape .botao-icone { width: auto; min-height: 35px; padding: 0 11px; gap: 7px; font-size: 12px; font-weight: 700; }
+.cartao-livro-rodape .cartao-editar { margin-right: auto; }
+@media (max-width: 520px) { .grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 15px; } }
