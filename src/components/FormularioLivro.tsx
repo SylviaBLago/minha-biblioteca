@@ -76,11 +76,11 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
                     {formato === 'fisico' ? 'Livro físico' : 'Ebook'}
                   </label>;
                 })}
-                <small>Deixe as duas opções desmarcadas se ainda não possui o livro. Exemplares já cadastrados são preservados.</small>
               </div>
             </div>
             <div className="campo-livro"><label htmlFor="livro-status">Status de leitura</label><select id="livro-status" value={dados.status} onChange={(e) => atualizar('status', e.target.value as StatusLivro)}>{(Object.entries(ROTULOS_STATUS) as [StatusLivro, string][]).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}</select></div>
           </div>
+          <p className="observacao-exemplares">Deixe as duas opções desmarcadas se ainda não possui o livro. Exemplares existentes só podem ser retirados após confirmação.</p>
           <div className="campo-livro"><label htmlFor="livro-capa">Endereço da capa (URL)</label><input id="livro-capa" type="url" value={dados.capa} onChange={(e) => atualizar('capa', e.target.value)} placeholder="https://..." /><small>Opcional. Por enquanto, use o endereço de uma imagem disponível na internet.</small></div>
           <div className="formulario-grade">
             <div className="campo-livro"><label htmlFor="livro-nota">Nota pessoal (0 a 10)</label><input id="livro-nota" type="number" min="0" max="10" step="0.5" value={dados.nota ?? ''} onChange={(e) => atualizar('nota', e.target.value === '' ? null : Number(e.target.value))} /></div>
