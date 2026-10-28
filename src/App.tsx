@@ -4,10 +4,11 @@ import { BookOpen, LibraryBig, Heart, BookMarked, ChartNoAxesColumn, Sparkles, P
 import Login from './components/Login';
 import RecuperarSenha from './components/RecuperarSenha';
 import FormularioLivro from './components/FormularioLivro';
+import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError } from './services/livrosSupabase';
-import { buscarDuplicatasSupabase, encontrarDuplicatas, mensagemDuplicatas } from './services/verificarDuplicatas';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase } from './services/livrosSupabase';
+import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro } from './types/livro';
 import { ROTULOS_STATUS } from './types/livro';
 
@@ -25,6 +26,8 @@ export default function App() {
   const salvandoRef = useRef(false);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
+  const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
+  const [pendente, setPendente] = useState<DadosLivro | null>(null);
   const [buscando, setBuscando] = useState(false);
   const [termoBusca, setTermoBusca] = useState('');
   const [erroArmazenamento, setErroArmazenamento] = useState('');
@@ -101,7 +104,7 @@ export default function App() {
     }
   }
 
-  async function salvarCadastro(dados: DadosLivro) {
+  async function salvarCadastro(dados: DadosLivro, confirmado = false) {
     if (salvandoRef.current) return;
     salvandoRef.current = true;
     setSalvando(true);
@@ -110,7 +113,7 @@ export default function App() {
       if (modoLocal) {
         if (!editando) {
           const duplicatas = encontrarDuplicatas(dados, livros);
-          if (duplicatas.length && !window.confirm(mensagemDuplicatas(duplicatas))) return;
+          if (duplicatas.length && !confirmado) { setAviso(duplicatas); setPendente(dados); return; }
         }
         const proximos = editando
           ? livros.map(livro => livro.id === editando.id ? { ...livro, ...dados } : livro)
@@ -118,15 +121,25 @@ export default function App() {
         if (persistirLocal(proximos)) { setModalAberto(false); setEditando(null); }
         return;
       }
-      if (!usuarioId || editando) return;
+      if (!usuarioId) return;
+      if (editando) {
+        await editarLivroSupabase(editando.id, usuarioId, dados);
+        const atualizados = await listarLivrosSupabase(usuarioId);
+        setLivros(atualizados);
+        setModalAberto(false);
+        setEditando(null);
+        return;
+      }
       // Consulta atualizada antes de inserir; não depende só da estante em memória.
       const duplicatas = await buscarDuplicatasSupabase(dados, usuarioId);
-      if (duplicatas.length && !window.confirm(mensagemDuplicatas(duplicatas))) return;
+      if (duplicatas.length && !confirmado) { setAviso(duplicatas); setPendente(dados); return; }
       await cadastrarLivroSupabase(dados, usuarioId);
       const atualizados = await listarLivrosSupabase(usuarioId);
       setLivros(atualizados);
       setModalAberto(false);
       setEditando(null);
+      setAviso([]);
+      setPendente(null);
     } catch (erro) {
       console.error('Erro ao cadastrar livro:', erro);
       setErroArmazenamento(erro instanceof CadastroParcialError
@@ -189,7 +202,7 @@ export default function App() {
           <div className="cabecalho-acoes"><button className="botao-secundario" onClick={() => exportarLivros(livros)} title="Exportar cópia de segurança da estante exibida"><Download size={17} /> Exportar backup</button><button className="botao-primario" disabled={carregandoLivros || salvando || !!erroArmazenamento && !modoLocal} onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
         </header>
         {erroArmazenamento && <p className="aviso-armazenamento" role="alert">{erroArmazenamento}</p>}
-        <p className="aviso-local">{modoLocal ? 'Seus livros estão armazenados somente neste navegador. Exporte um backup regularmente.' : 'Estante da sua conta Supabase. Livros antigos do navegador continuam preservados separadamente; nenhuma importação automática foi realizada. Edição e exclusão remotas serão habilitadas após os testes.'}</p>
+        <p className="aviso-local">{modoLocal ? 'Seus livros estão armazenados somente neste navegador. Exporte um backup regularmente.' : 'Estante da sua conta Supabase. Livros antigos do navegador continuam preservados separadamente; nenhuma importação automática foi realizada. Edição remota disponível para livros com um exemplar e uma leitura; exclusão remota permanece desabilitada.'}</p>
         {carregandoLivros && <p role="status">Carregando livros da sua conta...</p>}
         {pagina === 'inicio' && <>
           <section className="boas-vindas"><span className="etiqueta">🍃 SUA JORNADA LITERÁRIA</span><h3>Todo livro é uma nova descoberta.</h3><p>Organize suas leituras, guarde suas impressões e descubra histórias que combinam com você.</p><button className="botao-secundario" onClick={() => setPagina('fisicos')}>Explorar minha estante →</button></section>
@@ -204,10 +217,11 @@ export default function App() {
           <div className="secao-titulo"><div><span className="subtitulo">SUA COLEÇÃO</span><h3>{pagina === 'inicio' ? 'Minha estante' : titulos[pagina]}</h3></div><button className="botao-busca" onClick={() => { setBuscando(!buscando); setTermoBusca(''); }}><Search size={18} /> Buscar</button></div>
           {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} /></div>}
           {!carregandoLivros && !erroArmazenamento && livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
-          : <div className="grade-livros">{livrosExibidos.map(livro => <article className="cartao-livro" key={livro.id}><div className="capa-livro">{livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}</div><div className="cartao-livro-corpo"><span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'} {livro.desejo ? '· ❤️ Desejado' : ''}</span><h4>{livro.titulo}</h4><p>{livro.autor}</p><small>{ROTULOS_STATUS[livro.status]}{livro.genero ? ` · ${livro.genero}` : ''}</small>{livro.nota !== null && <small>⭐ {livro.nota}/10</small>}{livro.favorito && <small>♥ Favorito</small>}{modoLocal && <div className="cartao-livro-acoes"><button type="button" className="botao-icone" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={17} /></button><button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button></div>}</div></article>)}</div>}
+          : <div className="grade-livros">{livrosExibidos.map(livro => <article className="cartao-livro" key={livro.id}><div className="capa-livro">{livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}</div><div className="cartao-livro-corpo"><span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'} {livro.desejo ? '· ❤️ Desejado' : ''}</span><h4>{livro.titulo}</h4><p>{livro.autor}</p><small>{ROTULOS_STATUS[livro.status]}{livro.genero ? ` · ${livro.genero}` : ''}</small>{livro.nota !== null && <small>⭐ {livro.nota}/10</small>}{livro.favorito && <small>♥ Favorito</small>}{<div className="cartao-livro-acoes"><button type="button" className="botao-icone" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={17} /></button>{modoLocal && <button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button>}</div>}</div></article>)}</div>}
         </section>
       </main>
-      {modalAberto && <FormularioLivro livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { if (!salvando) { setModalAberto(false); setEditando(null); } }} />}
+      {aviso.length > 0 && pendente && <AvisoDuplicidade correspondencias={aviso} livros={livros} aoVoltar={() => setAviso([])} aoContinuar={() => { const dados = pendente; setAviso([]); setPendente(null); void salvarCadastro(dados, true); }} aoEditar={(livro) => { setAviso([]); setPendente(null); setEditando(livro); setModalAberto(true); }} />}
+      {modalAberto && !aviso.length && <FormularioLivro key={editando?.id ?? 'novo'} livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { if (!salvando) { setModalAberto(false); setEditando(null); } }} />}
     </div>
   );
 }
