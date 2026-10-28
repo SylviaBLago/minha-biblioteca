@@ -692,3 +692,36 @@ button:focus-visible {
 .cartao-livro-rodape .botao-icone { width: auto; min-height: 35px; padding: 0 11px; gap: 7px; font-size: 12px; font-weight: 700; }
 .cartao-livro-rodape .cartao-editar { margin-right: auto; }
 @media (max-width: 520px) { .grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 15px; } }
+
+
+/* Cartões compactos com controles sobre a capa */
+.grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 18px; }
+.cartao-livro-compacto { border-radius: 14px; }
+.capa-livro-compacta { position: relative; height: 230px; background: #e5e9da; isolation: isolate; }
+.capa-abrir { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; color: #738a70; cursor: pointer; }
+.capa-abrir img { width: 100%; height: 100%; object-fit: contain; }
+.capa-abrir:focus-visible, .capa-editar:focus-visible { outline: 3px solid #b98b2a; outline-offset: -3px; }
+.capa-editar { position: absolute; top: 9px; right: 9px; z-index: 2; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(53,79,61,.15); background: rgba(255,253,248,.96); color: #354f3d; box-shadow: 0 2px 9px rgba(0,0,0,.1); }
+.capa-editar:hover { background: #fff; }
+.capa-status { position: absolute; bottom: 10px; left: 8px; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 7px; padding: 6px 8px; font-size: 10px; font-weight: 700; background: rgba(255,253,248,.96); color: #354f3d; pointer-events: none; }
+.capa-status.cartao-status--lendo { color: #365e77; background: #e8f1f6; }
+.capa-status.cartao-status--concluido { color: #446c47; background: #e1eee1; }
+.capa-status.cartao-status--pausado { color: #856c40; background: #f5eddf; }
+.capa-status.cartao-status--abandonado { color: #885953; background: #f5e8e4; }
+.capa-avaliacao { position: absolute; bottom: 10px; right: 8px; display: flex; align-items: center; gap: 5px; border-radius: 8px; padding: 6px 8px; background: rgba(255,253,248,.96); color: #ab7b22; box-shadow: 0 1px 5px rgba(0,0,0,.08); pointer-events: none; }
+.capa-nota { font-size: 12px; font-weight: 800; white-space: nowrap; }
+.capa-coracao { color: #b45b60; flex: none; }
+.cartao-livro-corpo-compacto { padding: 12px 13px 15px; gap: 4px; min-height: 0; }
+.cartao-livro-corpo-compacto h4 { font-size: 16px; line-height: 1.3; margin: 0 0 5px; -webkit-line-clamp: 3; }
+.cartao-livro-corpo-compacto p { font-size: 12px; line-height: 1.4; color: #766d63; }
+.ficha-livro { max-width: 690px; }
+.ficha-conteudo { display: grid; grid-template-columns: minmax(125px,190px) minmax(0,1fr); gap: 25px; }
+.ficha-capa { display: flex; align-items: center; justify-content: center; min-height: 250px; max-height: 290px; border-radius: 12px; overflow: hidden; background: #e5e9da; color: #738a70; }
+.ficha-capa img { width: 100%; height: 100%; max-height: 290px; object-fit: contain; }
+.ficha-informacoes h3 { font: 600 25px/1.25 'Playfair Display',serif; color: #354f3d; margin: 0 0 5px; overflow-wrap: anywhere; }
+.ficha-autor { color: #766d63; font-size: 14px; margin: 0 0 19px; }
+.ficha-informacoes dl { display: grid; grid-template-columns: minmax(95px,auto) 1fr; gap: 12px; font-size: 13px; margin: 0; }
+.ficha-informacoes dt { color: #82766b; font-weight: 600; }
+.ficha-informacoes dd { color: #354f3d; margin: 0; overflow-wrap: anywhere; }
+.ficha-acoes { margin-top: 24px; }
+@media(max-width:520px) { .grade-livros { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; } .capa-livro-compacta { height: 205px; } .ficha-conteudo { grid-template-columns: 1fr; } .ficha-capa { min-height: 170px; max-height: 230px; } .ficha-capa img { max-height: 230px; } }
