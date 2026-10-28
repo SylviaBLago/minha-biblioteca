@@ -217,7 +217,37 @@ export default function App() {
           <div className="secao-titulo"><div><span className="subtitulo">SUA COLEÇÃO</span><h3>{pagina === 'inicio' ? 'Minha estante' : titulos[pagina]}</h3></div><button className="botao-busca" onClick={() => { setBuscando(!buscando); setTermoBusca(''); }}><Search size={18} /> Buscar</button></div>
           {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} /></div>}
           {!carregandoLivros && !erroArmazenamento && livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
-          : <div className="grade-livros">{livrosExibidos.map(livro => <article className="cartao-livro" key={livro.id}><div className="capa-livro">{livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}</div><div className="cartao-livro-corpo"><span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'} {livro.desejo ? '· ❤️ Desejado' : ''}</span><h4>{livro.titulo}</h4><p>{livro.autor}</p><small>{ROTULOS_STATUS[livro.status]}{livro.genero ? ` · ${livro.genero}` : ''}</small>{livro.nota !== null && <small>⭐ {livro.nota}/10</small>}{livro.favorito && <small>♥ Favorito</small>}{<div className="cartao-livro-acoes"><button type="button" className="botao-icone" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={17} /></button>{modoLocal && <button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button>}</div>}</div></article>)}</div>}
+          : <div className="grade-livros">{livrosExibidos.map(livro => (
+            <article className="cartao-livro" key={livro.id}>
+              <div className="capa-livro">
+                {livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}
+              </div>
+              <div className="cartao-livro-corpo">
+                <div className="cartao-livro-etiquetas">
+                  <span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'}</span>
+                  {livro.desejo && <span className="cartao-livro-desejo">♡ Desejado</span>}
+                </div>
+                <div className="cartao-livro-identidade">
+                  <h4 title={livro.titulo}>{livro.titulo}</h4>
+                  <p title={livro.autor}>{livro.autor}</p>
+                </div>
+                <div className="cartao-livro-metadados">
+                  <span className={`cartao-status cartao-status--${livro.status}`}>{ROTULOS_STATUS[livro.status]}</span>
+                  {livro.genero && <span className="cartao-livro-genero" title={livro.genero}>{livro.genero}</span>}
+                </div>
+                {(livro.nota !== null || livro.favorito) && (
+                  <div className="cartao-livro-avaliacao">
+                    {livro.nota !== null && <span className="cartao-livro-nota" aria-label={`Nota ${livro.nota} de 10`}>★ <strong>{livro.nota.toLocaleString('pt-BR')}</strong><span>/10</span></span>}
+                    {livro.favorito && <span className="cartao-livro-favorito">♥ Favorito</span>}
+                  </div>
+                )}
+                <div className="cartao-livro-rodape">
+                  <button type="button" className="botao-icone cartao-editar" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={16} /> <span>Editar</span></button>
+                  {modoLocal && <button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button>}
+                </div>
+              </div>
+            </article>
+          ))}</div>}
         </section>
       </main>
       {aviso.length > 0 && pendente && <AvisoDuplicidade correspondencias={aviso} livros={livros} aoVoltar={() => setAviso([])} aoContinuar={() => { const dados = pendente; setAviso([]); setPendente(null); void salvarCadastro(dados, true); }} aoEditar={(livro) => { setAviso([]); setPendente(null); setEditando(livro); setModalAberto(true); }} />}
