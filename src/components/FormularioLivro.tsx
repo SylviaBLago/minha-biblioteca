@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { X, Save } from 'lucide-react';
 import type { DadosLivro, Livro, FormatoLivro, StatusLivro } from '../types/livro';
-import { ROTULOS_STATUS } from '../types/livro';
+import { ROTULOS_STATUS, formatosDoLivro } from '../types/livro';
 
 interface Props {
   livro?: Livro | null;
@@ -17,6 +17,8 @@ function dadosIniciais(livro?: Livro | null): DadosLivro {
     paginas: livro?.paginas ?? null,
     capa: livro?.capa ?? '',
     formato: livro?.formato ?? 'fisico',
+    formatos: livro ? formatosDoLivro(livro) : [],
+    possui: livro ? formatosDoLivro(livro).length > 0 : false,
     status: livro?.status ?? 'quero_ler',
     desejo: livro?.desejo ?? false,
     favorito: livro?.favorito ?? false,
@@ -58,7 +60,25 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
           <div className="formulario-grade">
             <div className="campo-livro"><label htmlFor="livro-genero">Gênero</label><input id="livro-genero" maxLength={100} value={dados.genero} onChange={(e) => atualizar('genero', e.target.value)} placeholder="Ficção científica" /></div>
             <div className="campo-livro"><label htmlFor="livro-paginas">Páginas</label><input id="livro-paginas" type="number" min="1" max="100000" value={dados.paginas ?? ''} onChange={(e) => atualizar('paginas', e.target.value === '' ? null : Number(e.target.value))} /></div>
-            <div className="campo-livro"><label htmlFor="livro-formato">Formato</label><select id="livro-formato" value={dados.formato} onChange={(e) => atualizar('formato', e.target.value as FormatoLivro)}><option value="fisico">Livro físico</option><option value="ebook">Ebook</option></select></div>
+            <div className="campo-livro"><label>Exemplares que possuo</label>
+              <div className="formulario-opcoes formulario-posse">
+                {(['fisico', 'ebook'] as FormatoLivro[]).map(formato => {
+                  const existentes = livro ? formatosDoLivro(livro) : [];
+                  const marcado = (dados.formatos ?? []).includes(formato);
+                  return <label key={formato}><input type="checkbox" checked={marcado}
+                    disabled={existentes.includes(formato)}
+                    onChange={e => {
+                      const formatos = e.target.checked
+                        ? [...new Set([...(dados.formatos ?? []), formato])]
+                        : (dados.formatos ?? []).filter(f => f !== formato);
+                      setDados(atual => ({ ...atual, formatos, possui: formatos.length > 0, formato: formatos[0] ?? 'fisico' }));
+                    }} />
+                    {formato === 'fisico' ? 'Livro físico' : 'Ebook'}
+                  </label>;
+                })}
+                <small>Deixe as duas opções desmarcadas se ainda não possui o livro. Exemplares já cadastrados são preservados.</small>
+              </div>
+            </div>
             <div className="campo-livro"><label htmlFor="livro-status">Status de leitura</label><select id="livro-status" value={dados.status} onChange={(e) => atualizar('status', e.target.value as StatusLivro)}>{(Object.entries(ROTULOS_STATUS) as [StatusLivro, string][]).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}</select></div>
           </div>
           <div className="campo-livro"><label htmlFor="livro-capa">Endereço da capa (URL)</label><input id="livro-capa" type="url" value={dados.capa} onChange={(e) => atualizar('capa', e.target.value)} placeholder="https://..." /><small>Opcional. Por enquanto, use o endereço de uma imagem disponível na internet.</small></div>
