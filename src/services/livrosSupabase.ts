@@ -133,7 +133,7 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
   if (leituras.length !== 1)
     throw new Error('Este livro tem múltiplas leituras ou nenhuma leitura. A edição das releituras será disponibilizada na próxima etapa.');
   const leitura = leituras[0];
-  const atuais = [...new Set(exemplares.map(e => String(e.formato)))];
+  const atuais: FormatoLivro[] = [...new Set(exemplares.map(e => e.formato).filter((f): f is FormatoLivro => f === 'fisico' || f === 'ebook'))];
   const solicitados = [...new Set(dados.formatos ?? (dados.possui === false ? [] : [dados.formato]))];
   if (atuais.some(formato => !solicitados.includes(formato)))
     throw new Error('A retirada de exemplares existentes ainda não está habilitada. Mantenha os formatos já cadastrados para preservar o histórico.');
