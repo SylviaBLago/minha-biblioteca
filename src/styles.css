@@ -725,3 +725,19 @@ button:focus-visible {
 .ficha-informacoes dd { color: #354f3d; margin: 0; overflow-wrap: anywhere; }
 .ficha-acoes { margin-top: 24px; }
 @media(max-width:520px) { .grade-livros { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; } .capa-livro-compacta { height: 205px; } .ficha-conteudo { grid-template-columns: 1fr; } .ficha-capa { min-height: 170px; max-height: 230px; } .ficha-capa img { max-height: 230px; } }
+
+/* Refinamento: cartões menores, mantendo etiquetas legíveis e a ficha completa */
+.grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 164px), 190px)); gap: 16px; }
+.capa-livro-compacta { height: 195px; }
+.cartao-livro-corpo-compacto { padding: 11px 12px 13px; }
+.cartao-livro-corpo-compacto h4 { font-size: 15px; line-height: 1.28; }
+.cartao-livro-corpo-compacto p { font-size: 12px; }
+.capa-editar { width: 32px; height: 32px; }
+.capa-status { bottom: 8px; left: 7px; padding: 5px 7px; max-width: 52%; }
+.capa-avaliacao { bottom: 8px; right: 7px; padding: 5px 7px; }
+.ficha-informacoes dl { gap: 11px 14px; }
+@media(max-width:520px) {
+  .grade-livros { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .capa-livro-compacta { height: clamp(170px,52vw,205px); }
+  .cartao-livro-corpo-compacto { padding: 10px; }
+}
