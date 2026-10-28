@@ -265,6 +265,7 @@ export default function App() {
               </div>
             </div>
             <div className="modal-acoes ficha-acoes">
+              {modoLocal && <button type="button" className="botao-secundario" onClick={() => { const livro = detalhes; setDetalhes(null); excluirLivro(livro); }}><Trash2 size={16} /> Excluir livro local</button>}
               <button type="button" className="botao-secundario" onClick={() => setDetalhes(null)}>Fechar</button>
               <button type="button" className="botao-primario" onClick={() => { setEditando(detalhes); setDetalhes(null); setModalAberto(true); }}><Pencil size={16} /> Editar livro</button>
             </div>
