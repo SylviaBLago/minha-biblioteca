@@ -106,7 +106,7 @@ export async function cadastrarLivroSupabase(dados: DadosLivro, usuarioId: strin
   if (dados.nota !== null || dados.favorito) {
     await inserir('avaliacoes', { usuario_id: usuarioId, leitura_id: leituraId, nota: dados.nota, favorito: dados.favorito }, 'a avaliação');
   }
-  if (dados.desejo) {
+  if (dados.desejo && formatos.length === 0) {
     await inserir('lista_desejos', { usuario_id: usuarioId, livro_id: livroId }, 'a lista de desejos');
   }
 }
@@ -139,6 +139,7 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     throw new Error('Quantidade elevada de exemplares: confira os dados antes de editar.');
   const remover = exemplares.filter(e => !solicitados.includes(e.formato as FormatoLivro));
   const adicionar = solicitados.filter(formato => !atuais.includes(formato));
+  const desejaAdquirir = solicitados.length === 0 && dados.desejo;
   const avaliacoes = await obter('avaliacoes', 'leitura_id', String(leitura.id));
   if (avaliacoes.length > 1 || desejos.length > 1)
     throw new Error('Foram encontrados registros relacionados ambíguos. Nenhuma alteração foi iniciada.');
@@ -167,10 +168,10 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     });
     if (error) throw new EdicaoParcialError('avaliação', error);
   }
-  if (dados.desejo && !desejos.length) {
+  if (desejaAdquirir && !desejos.length) {
     const { error } = await supabase.from('lista_desejos').insert({ usuario_id: usuarioId, livro_id: id });
     if (error) throw new EdicaoParcialError('lista de desejos', error);
-  } else if (!dados.desejo && desejos.length) {
+  } else if (!desejaAdquirir && desejos.length) {
     const { error } = await supabase.from('lista_desejos').delete()
       .eq('usuario_id', usuarioId).eq('id', String(desejos[0].id));
     if (error) throw new EdicaoParcialError('lista de desejos', error);
