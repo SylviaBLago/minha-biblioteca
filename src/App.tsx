@@ -6,6 +6,7 @@ import RecuperarSenha from './components/RecuperarSenha';
 import FormularioLivro from './components/FormularioLivro';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError } from './services/livrosSupabase';
 import type { DadosLivro, Livro } from './types/livro';
 import { ROTULOS_STATUS } from './types/livro';
 
@@ -17,7 +18,9 @@ export default function App() {
   const [verificando, setVerificando] = useState(true);
   const [recuperandoSenha, setRecuperandoSenha] = useState(false);
   const [modoLocal, setModoLocal] = useState(() => sessionStorage.getItem('biblioteca_modo_local') === 'true');
-  const [livros, setLivros] = useState<Livro[]>(carregarLivros);
+  const [livros, setLivros] = useState<Livro[]>([]);
+  const [carregandoLivros, setCarregandoLivros] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -31,7 +34,7 @@ export default function App() {
       if (error) { console.error('Erro ao verificar sessão:', error); setSessao(null); }
       else setSessao(data.session);
       setVerificando(false);
-    }).catch((error) => {
+    }).catch(error => {
       console.error('Erro de autenticação:', error);
       if (ativo) { setSessao(null); setVerificando(false); }
     });
@@ -43,6 +46,28 @@ export default function App() {
     });
     return () => { ativo = false; subscription.unsubscribe(); };
   }, []);
+
+  const usuarioId = sessao?.user.id;
+  useEffect(() => {
+    let ativo = true;
+    setLivros([]);
+    setErroArmazenamento('');
+    if (modoLocal) {
+      setLivros(carregarLivros());
+      setCarregandoLivros(false);
+    } else if (usuarioId) {
+      setCarregandoLivros(true);
+      listarLivrosSupabase(usuarioId).then(resultado => {
+        if (ativo) setLivros(resultado);
+      }).catch(erro => {
+        console.error('Erro ao carregar estante:', erro);
+        if (ativo) setErroArmazenamento('Não foi possível carregar a estante do Supabase. Nenhum dado foi apagado. ' + String(erro.message ?? erro));
+      }).finally(() => { if (ativo) setCarregandoLivros(false); });
+    } else {
+      setCarregandoLivros(false);
+    }
+    return () => { ativo = false; };
+  }, [modoLocal, usuarioId]);
 
   function entrarModoLocal() {
     sessionStorage.setItem('biblioteca_modo_local', 'true');
@@ -61,7 +86,7 @@ export default function App() {
     if (error) window.alert('Não foi possível encerrar a sessão. Tente novamente.');
   }
 
-  function persistir(proximos: Livro[]) {
+  function persistirLocal(proximos: Livro[]): boolean {
     try {
       salvarLivros(proximos);
       setLivros(proximos);
@@ -69,21 +94,44 @@ export default function App() {
       return true;
     } catch (erro) {
       console.error('Erro ao salvar livros no navegador:', erro);
-      setErroArmazenamento('Não foi possível salvar os livros neste navegador. Verifique o espaço disponível ou as configurações de armazenamento.');
+      setErroArmazenamento('Não foi possível salvar os livros neste navegador.');
       return false;
     }
   }
 
-  function salvarCadastro(dados: DadosLivro) {
-    const proximos = editando
-      ? livros.map((livro) => livro.id === editando.id ? { ...livro, ...dados } : livro)
-      : [novoLivro(dados), ...livros];
-    if (persistir(proximos)) { setModalAberto(false); setEditando(null); }
+  async function salvarCadastro(dados: DadosLivro) {
+    if (salvando) return;
+    if (modoLocal) {
+      const proximos = editando
+        ? livros.map(livro => livro.id === editando.id ? { ...livro, ...dados } : livro)
+        : [novoLivro(dados), ...livros];
+      if (persistirLocal(proximos)) { setModalAberto(false); setEditando(null); }
+      return;
+    }
+    if (!usuarioId || editando) return;
+    setSalvando(true);
+    setErroArmazenamento('');
+    try {
+      await cadastrarLivroSupabase(dados, usuarioId);
+      const atualizados = await listarLivrosSupabase(usuarioId);
+      setLivros(atualizados);
+      setModalAberto(false);
+      setEditando(null);
+    } catch (erro) {
+      console.error('Erro ao cadastrar livro:', erro);
+      setErroArmazenamento(erro instanceof CadastroParcialError
+        ? erro.message
+        : `Não foi possível concluir o cadastro ou atualizar a estante: ${String(erro instanceof Error ? erro.message : erro)}. Confira a estante antes de repetir.`);
+      // Mantém o formulário aberto; nenhum dado local ou remoto é excluído.
+    } finally {
+      setSalvando(false);
+    }
   }
 
   function excluirLivro(livro: Livro) {
+    if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
-    persistir(livros.filter((item) => item.id !== livro.id));
+    persistirLocal(livros.filter(item => item.id !== livro.id));
   }
 
   const menu = [
@@ -95,24 +143,22 @@ export default function App() {
     { id: 'estatisticas', nome: 'Estatísticas', icone: ChartNoAxesColumn },
     { id: 'descobrir', nome: 'Descobrir', icone: Sparkles },
   ] as const;
-
   const titulos: Record<Pagina, string> = {
     inicio: 'Seu cantinho literário', fisicos: 'Biblioteca física', ebooks: 'Biblioteca digital',
     desejos: 'Lista de desejos', diario: 'Diário de leitura', estatisticas: 'Estatísticas literárias',
     descobrir: 'Descubra sua próxima leitura',
   };
-
   const livrosExibidos = useMemo(() => {
     let selecionados = livros;
-    if (pagina === 'fisicos') selecionados = livros.filter((livro) => livro.formato === 'fisico' && !livro.desejo);
-    if (pagina === 'ebooks') selecionados = livros.filter((livro) => livro.formato === 'ebook' && !livro.desejo);
-    if (pagina === 'desejos') selecionados = livros.filter((livro) => livro.desejo);
-    if (pagina === 'inicio') selecionados = livros.filter((livro) => !livro.desejo);
-    if (pagina === 'diario') selecionados = livros.filter((livro) => ['lendo', 'concluido', 'pausado', 'abandonado'].includes(livro.status));
-    if (pagina === 'descobrir') selecionados = livros.filter((livro) => livro.status === 'quero_ler');
-    if (pagina === 'estatisticas') selecionados = livros.filter((livro) => livro.status === 'concluido');
+    if (pagina === 'fisicos') selecionados = livros.filter(l => l.formato === 'fisico' && !l.desejo);
+    if (pagina === 'ebooks') selecionados = livros.filter(l => l.formato === 'ebook' && !l.desejo);
+    if (pagina === 'desejos') selecionados = livros.filter(l => l.desejo);
+    if (pagina === 'inicio') selecionados = livros.filter(l => !l.desejo);
+    if (pagina === 'diario') selecionados = livros.filter(l => ['lendo', 'concluido', 'pausado', 'abandonado'].includes(l.status));
+    if (pagina === 'descobrir') selecionados = livros.filter(l => l.status === 'quero_ler');
+    if (pagina === 'estatisticas') selecionados = livros.filter(l => l.status === 'concluido');
     const busca = termoBusca.trim().toLocaleLowerCase('pt-BR');
-    if (busca) selecionados = selecionados.filter((livro) => `${livro.titulo} ${livro.autor} ${livro.genero}`.toLocaleLowerCase('pt-BR').includes(busca));
+    if (busca) selecionados = selecionados.filter(l => `${l.titulo} ${l.autor} ${l.genero}`.toLocaleLowerCase('pt-BR').includes(busca));
     return selecionados;
   }, [livros, pagina, termoBusca]);
 
@@ -124,33 +170,34 @@ export default function App() {
     <div className="aplicativo">
       <aside className="barra-lateral">
         <div className="marca"><span className="marca-icone">📚</span><div><h1>Minha Biblioteca</h1><p>Um universo de histórias</p></div></div>
-        <nav className="menu">{menu.map((item) => { const Icone = item.icone; return <button key={item.id} className={`menu-item ${pagina === item.id ? 'ativo' : ''}`} onClick={() => { setPagina(item.id); setBuscando(false); setTermoBusca(''); }}><Icone size={19} /><span>{item.nome}</span></button>; })}</nav>
+        <nav className="menu">{menu.map(item => { const Icone = item.icone; return <button key={item.id} className={`menu-item ${pagina === item.id ? 'ativo' : ''}`} onClick={() => { setPagina(item.id); setBuscando(false); setTermoBusca(''); }}><Icone size={19} /><span>{item.nome}</span></button>; })}</nav>
         <div className="rodape-menu"><button className="botao-sair" onClick={sair}><LogOut size={18} />{modoLocal ? 'Sair do modo local' : 'Sair da biblioteca'}</button><p>🍂 Um livro de cada vez.</p></div>
       </aside>
       <main className="conteudo">
         <header className="cabecalho">
-          <div><span className="subtitulo">{modoLocal ? 'MINHA BIBLIOTECA · MODO LOCAL' : 'MINHA BIBLIOTECA · DADOS LOCAIS'}</span><h2>{titulos[pagina]}</h2></div>
-          <div className="cabecalho-acoes"><button className="botao-secundario" onClick={() => exportarLivros(livros)} title="Exportar cópia de segurança dos livros locais"><Download size={17} /> Exportar backup</button><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
+          <div><span className="subtitulo">{modoLocal ? 'MINHA BIBLIOTECA · MODO LOCAL' : 'MINHA BIBLIOTECA · SUPABASE'}</span><h2>{titulos[pagina]}</h2></div>
+          <div className="cabecalho-acoes"><button className="botao-secundario" onClick={() => exportarLivros(livros)} title="Exportar cópia de segurança da estante exibida"><Download size={17} /> Exportar backup</button><button className="botao-primario" disabled={carregandoLivros || salvando || !!erroArmazenamento && !modoLocal} onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
         </header>
         {erroArmazenamento && <p className="aviso-armazenamento" role="alert">{erroArmazenamento}</p>}
-        <p className="aviso-local">Os livros desta versão são armazenados apenas neste navegador, mesmo se você estiver conectada à conta. Exporte um backup regularmente.</p>
+        <p className="aviso-local">{modoLocal ? 'Seus livros estão armazenados somente neste navegador. Exporte um backup regularmente.' : 'Estante da sua conta Supabase. Livros antigos do navegador continuam preservados separadamente; nenhuma importação automática foi realizada. Edição e exclusão remotas serão habilitadas após os testes.'}</p>
+        {carregandoLivros && <p role="status">Carregando livros da sua conta...</p>}
         {pagina === 'inicio' && <>
           <section className="boas-vindas"><span className="etiqueta">🍃 SUA JORNADA LITERÁRIA</span><h3>Todo livro é uma nova descoberta.</h3><p>Organize suas leituras, guarde suas impressões e descubra histórias que combinam com você.</p><button className="botao-secundario" onClick={() => setPagina('fisicos')}>Explorar minha estante →</button></section>
           <section className="indicadores">
-            <div className="indicador"><span>Livros na biblioteca</span><strong>{livros.filter((l) => !l.desejo).length}</strong><small>Sua coleção começa aqui</small></div>
-            <div className="indicador"><span>Livros concluídos</span><strong>{livros.filter((l) => l.status === 'concluido' && !l.desejo).length}</strong><small>Histórias vividas</small></div>
-            <div className="indicador"><span>Lendo atualmente</span><strong>{livros.filter((l) => l.status === 'lendo' && !l.desejo).length}</strong><small>Em andamento</small></div>
-            <div className="indicador"><span>Lista de desejos</span><strong>{livros.filter((l) => l.desejo).length}</strong><small>Próximas descobertas</small></div>
+            <div className="indicador"><span>Livros na biblioteca</span><strong>{livros.filter(l => !l.desejo).length}</strong><small>Sua coleção começa aqui</small></div>
+            <div className="indicador"><span>Livros concluídos</span><strong>{livros.filter(l => l.status === 'concluido' && !l.desejo).length}</strong><small>Histórias vividas</small></div>
+            <div className="indicador"><span>Lendo atualmente</span><strong>{livros.filter(l => l.status === 'lendo' && !l.desejo).length}</strong><small>Em andamento</small></div>
+            <div className="indicador"><span>Lista de desejos</span><strong>{livros.filter(l => l.desejo).length}</strong><small>Próximas descobertas</small></div>
           </section>
         </>}
         <section className="secao-estante">
           <div className="secao-titulo"><div><span className="subtitulo">SUA COLEÇÃO</span><h3>{pagina === 'inicio' ? 'Minha estante' : titulos[pagina]}</h3></div><button className="botao-busca" onClick={() => { setBuscando(!buscando); setTermoBusca(''); }}><Search size={18} /> Buscar</button></div>
-          {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} /></div>}
-          {livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
-          : <div className="grade-livros">{livrosExibidos.map((livro) => <article className="cartao-livro" key={livro.id}><div className="capa-livro">{livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={(e) => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}</div><div className="cartao-livro-corpo"><span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'} {livro.desejo ? '· ❤️ Desejado' : ''}</span><h4>{livro.titulo}</h4><p>{livro.autor}</p><small>{ROTULOS_STATUS[livro.status]}{livro.genero ? ` · ${livro.genero}` : ''}</small>{livro.nota !== null && <small>⭐ {livro.nota}/10</small>}{livro.favorito && <small>♥ Favorito</small>}<div className="cartao-livro-acoes"><button type="button" className="botao-icone" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={17} /></button><button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button></div></div></article>)}</div>}
+          {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} /></div>}
+          {!carregandoLivros && !erroArmazenamento && livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
+          : <div className="grade-livros">{livrosExibidos.map(livro => <article className="cartao-livro" key={livro.id}><div className="capa-livro">{livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}</div><div className="cartao-livro-corpo"><span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'} {livro.desejo ? '· ❤️ Desejado' : ''}</span><h4>{livro.titulo}</h4><p>{livro.autor}</p><small>{ROTULOS_STATUS[livro.status]}{livro.genero ? ` · ${livro.genero}` : ''}</small>{livro.nota !== null && <small>⭐ {livro.nota}/10</small>}{livro.favorito && <small>♥ Favorito</small>}{modoLocal && <div className="cartao-livro-acoes"><button type="button" className="botao-icone" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={17} /></button><button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button></div>}</div></article>)}</div>}
         </section>
       </main>
-      {modalAberto && <FormularioLivro livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { setModalAberto(false); setEditando(null); }} />}
+      {modalAberto && <FormularioLivro livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { if (!salvando) { setModalAberto(false); setEditando(null); } }} />}
     </div>
   );
 }
