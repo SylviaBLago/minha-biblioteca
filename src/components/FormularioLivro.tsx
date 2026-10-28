@@ -44,7 +44,7 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!dados.titulo.trim() || !dados.autor.trim()) return;
-    aoSalvar({ ...dados, titulo: dados.titulo.trim(), autor: dados.autor.trim(), genero: dados.genero.trim(), capa: dados.capa.trim() });
+    aoSalvar({ ...dados, desejo: (dados.formatos ?? []).length === 0 && dados.desejo, titulo: dados.titulo.trim(), autor: dados.autor.trim(), genero: dados.genero.trim(), capa: dados.capa.trim() });
   }
 
   return (
@@ -69,7 +69,7 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
                       const formatos = e.target.checked
                         ? [...new Set([...(dados.formatos ?? []), formato])]
                         : (dados.formatos ?? []).filter(f => f !== formato);
-                      setDados(atual => ({ ...atual, formatos, possui: formatos.length > 0, formato: formatos[0] ?? 'fisico' }));
+                      setDados(atual => ({ ...atual, formatos, possui: formatos.length > 0, formato: formatos[0] ?? 'fisico', desejo: formatos.length > 0 ? false : atual.desejo }));
                     }} />
                     {formato === 'fisico' ? 'Livro físico' : 'Ebook'}
                   </label>;
@@ -78,11 +78,11 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
             </div>
             <div className="campo-livro"><label htmlFor="livro-status">Status de leitura</label><select id="livro-status" value={dados.status} onChange={(e) => atualizar('status', e.target.value as StatusLivro)}>{(Object.entries(ROTULOS_STATUS) as [StatusLivro, string][]).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}</select></div>
           </div>
-          <p className="observacao-exemplares">Deixe as duas opções desmarcadas se ainda não possui o livro.</p>
+          <p className="observacao-exemplares">Deixe as duas opções desmarcadas se ainda não possui o livro. Ao marcar um exemplar, o livro sai automaticamente da lista de desejos.</p>
           <div className="campo-livro"><label htmlFor="livro-capa">Endereço da capa (URL)</label><input id="livro-capa" type="url" value={dados.capa} onChange={(e) => atualizar('capa', e.target.value)} placeholder="https://..." /><small>Opcional. Por enquanto, use o endereço de uma imagem disponível na internet.</small></div>
           <div className="formulario-grade">
             <div className="campo-livro"><label htmlFor="livro-nota">Nota pessoal (0 a 10)</label><input id="livro-nota" type="number" min="0" max="10" step="0.5" value={dados.nota ?? ''} onChange={(e) => atualizar('nota', e.target.value === '' ? null : Number(e.target.value))} /></div>
-            <div className="formulario-opcoes"><label><input type="checkbox" checked={dados.desejo} onChange={(e) => atualizar('desejo', e.target.checked)} /> Na lista de desejos</label><label><input type="checkbox" checked={dados.favorito} onChange={(e) => atualizar('favorito', e.target.checked)} /> Livro favorito</label></div>
+            <div className="formulario-opcoes"><label><input type="checkbox" checked={dados.desejo && (dados.formatos ?? []).length === 0} disabled={(dados.formatos ?? []).length > 0} onChange={(e) => atualizar('desejo', e.target.checked)} /> Na lista de desejos</label><label><input type="checkbox" checked={dados.favorito} onChange={(e) => atualizar('favorito', e.target.checked)} /> Livro favorito</label></div>
           </div>
           <div className="modal-acoes"><button type="button" className="botao-secundario" onClick={aoFechar}>Cancelar</button><button type="submit" className="botao-primario"><Save size={17} /> {livro ? 'Salvar alterações' : 'Salvar livro'}</button></div>
         </form>
