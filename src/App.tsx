@@ -261,6 +261,7 @@ export default function App() {
                   <dt>Nota pessoal</dt><dd>{detalhes.nota === null ? 'Sem avaliação' : `${detalhes.nota.toLocaleString('pt-BR')} / 10`}</dd>
                   <dt>Favorito</dt><dd>{detalhes.favorito ? 'Sim ♥' : 'Não'}</dd>
                   <dt>Lista de desejos</dt><dd>{detalhes.desejo ? 'Sim' : 'Não'}</dd>
+                  <dt>Cadastrado em</dt><dd>{detalhes.criadoEm && !Number.isNaN(Date.parse(detalhes.criadoEm)) ? new Date(detalhes.criadoEm).toLocaleDateString('pt-BR') : 'Não informado'}</dd>
                 </dl>
               </div>
             </div>
