@@ -31,10 +31,13 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
     todasAsLinhas('lista_desejos', usuarioId),
   ]);
   const porCriacao = (a: Linha, b: Linha) => String(b.criado_em ?? '').localeCompare(String(a.criado_em ?? ''));
-  const formatoPorLivro = new Map<string, FormatoLivro>();
+  const formatosPorLivro = new Map<string, FormatoLivro[]>();
   for (const e of [...exemplares].sort(porCriacao)) {
     const id = String(e.livro_id);
-    if (!formatoPorLivro.has(id)) formatoPorLivro.set(id, e.formato === 'ebook' ? 'ebook' : 'fisico');
+    const formatos = formatosPorLivro.get(id) ?? [];
+    const formato = e.formato === 'ebook' ? 'ebook' : 'fisico';
+    if (!formatos.includes(formato)) formatos.push(formato);
+    formatosPorLivro.set(id, formatos);
   }
   const leituraPorLivro = new Map<string, Linha>();
   for (const l of [...leituras].sort(porCriacao)) {
@@ -60,7 +63,9 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
       genero: String(l.genero ?? ''),
       paginas: l.paginas == null ? null : Number(l.paginas),
       capa: String(l.capa_url ?? ''),
-      formato: formatoPorLivro.get(id) ?? 'fisico',
+      formato: formatosPorLivro.get(id)?.[0] ?? 'fisico',
+      formatos: formatosPorLivro.get(id) ?? [],
+      possui: (formatosPorLivro.get(id)?.length ?? 0) > 0,
       status: statusPermitidos.includes(status as StatusLivro) ? status as StatusLivro : 'quero_ler',
       desejo: idsDesejados.has(id),
       favorito: avaliacao?.favorito === true,
@@ -92,7 +97,10 @@ export async function cadastrarLivroSupabase(dados: DadosLivro, usuarioId: strin
     const { error } = await supabase.from(tabela).insert(valores);
     if (error) throw new CadastroParcialError(livroId, etapa, error.message);
   };
-  await inserir('exemplares', { usuario_id: usuarioId, livro_id: livroId, formato: dados.formato }, 'o formato do exemplar');
+  const formatos = dados.formatos ?? (dados.possui === false ? [] : [dados.formato]);
+  for (const formato of [...new Set(formatos)]) {
+    await inserir('exemplares', { usuario_id: usuarioId, livro_id: livroId, formato }, 'o formato do exemplar');
+  }
   const leituraId = crypto.randomUUID();
   await inserir('leituras', { id: leituraId, usuario_id: usuarioId, livro_id: livroId, status: dados.status }, 'o status de leitura');
   if (dados.nota !== null || dados.favorito) {
@@ -122,9 +130,14 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     obter('leituras', 'livro_id', id), obter('lista_desejos', 'livro_id', id),
   ]);
   if (livros.length !== 1) throw new Error('Livro não encontrado na sua conta.');
-  if (exemplares.length !== 1 || leituras.length !== 1)
-    throw new Error('Este livro tem múltiplos ou nenhum exemplar/leitura. Para preservar o histórico, a edição deste caso ficará para uma etapa específica.');
-  const exemplar = exemplares[0], leitura = leituras[0];
+  if (leituras.length !== 1)
+    throw new Error('Este livro tem múltiplas leituras ou nenhuma leitura. A edição das releituras será disponibilizada na próxima etapa.');
+  const leitura = leituras[0];
+  const atuais = [...new Set(exemplares.map(e => String(e.formato)))];
+  const solicitados = [...new Set(dados.formatos ?? (dados.possui === false ? [] : [dados.formato]))];
+  if (atuais.some(formato => !solicitados.includes(formato)))
+    throw new Error('A retirada de exemplares existentes ainda não está habilitada. Mantenha os formatos já cadastrados para preservar o histórico.');
+  const adicionar = solicitados.filter(formato => !atuais.includes(formato));
   const avaliacoes = await obter('avaliacoes', 'leitura_id', String(leitura.id));
   if (avaliacoes.length > 1 || desejos.length > 1)
     throw new Error('Foram encontrados registros relacionados ambíguos. Nenhuma alteração foi iniciada.');
@@ -137,7 +150,12 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     titulo: dados.titulo, autor: dados.autor || null, genero: dados.genero || null,
     paginas: dados.paginas, capa_url: dados.capa || null,
   }, 'dados bibliográficos');
-  await alterar('exemplares', String(exemplar.id), { formato: dados.formato }, 'formato');
+  for (const formato of adicionar) {
+    const { error } = await supabase.from('exemplares').insert({
+      usuario_id: usuarioId, livro_id: id, formato,
+    });
+    if (error) throw new EdicaoParcialError('inclusão de exemplar', error);
+  }
   await alterar('leituras', String(leitura.id), { status: dados.status }, 'status');
   if (avaliacoes.length) {
     await alterar('avaliacoes', String(avaliacoes[0].id),
