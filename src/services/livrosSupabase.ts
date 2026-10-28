@@ -102,3 +102,58 @@ export async function cadastrarLivroSupabase(dados: DadosLivro, usuarioId: strin
     await inserir('lista_desejos', { usuario_id: usuarioId, livro_id: livroId }, 'a lista de desejos');
   }
 }
+
+export class EdicaoParcialError extends Error {
+  constructor(etapa: string, causa: unknown) {
+    super('Uma parte das alterações pode ter sido salva, mas houve erro em ' + etapa + ': ' + erroDe(causa) + '. Recarregue a estante antes de tentar novamente.');
+    this.name = 'EdicaoParcialError';
+  }
+}
+
+export async function editarLivroSupabase(id: string, usuarioId: string, dados: DadosLivro): Promise<void> {
+  const obter = async (tabela: string, chave: string, valor: string) => {
+    const { data, error } = await supabase.from(tabela).select('*')
+      .eq('usuario_id', usuarioId).eq(chave, valor).limit(100);
+    if (error) throw new Error('Erro ao consultar ' + tabela + ': ' + error.message);
+    return (data ?? []) as Linha[];
+  };
+  const [livros, exemplares, leituras, desejos] = await Promise.all([
+    obter('livros', 'id', id), obter('exemplares', 'livro_id', id),
+    obter('leituras', 'livro_id', id), obter('lista_desejos', 'livro_id', id),
+  ]);
+  if (livros.length !== 1) throw new Error('Livro não encontrado na sua conta.');
+  if (exemplares.length !== 1 || leituras.length !== 1)
+    throw new Error('Este livro tem múltiplos ou nenhum exemplar/leitura. Para preservar o histórico, a edição deste caso ficará para uma etapa específica.');
+  const exemplar = exemplares[0], leitura = leituras[0];
+  const avaliacoes = await obter('avaliacoes', 'leitura_id', String(leitura.id));
+  if (avaliacoes.length > 1 || desejos.length > 1)
+    throw new Error('Foram encontrados registros relacionados ambíguos. Nenhuma alteração foi iniciada.');
+  const alterar = async (tabela: string, registroId: string, valores: Record<string, unknown>, etapa: string) => {
+    const { error } = await supabase.from(tabela).update(valores)
+      .eq('usuario_id', usuarioId).eq('id', registroId);
+    if (error) throw new EdicaoParcialError(etapa, error);
+  };
+  await alterar('livros', id, {
+    titulo: dados.titulo, autor: dados.autor || null, genero: dados.genero || null,
+    paginas: dados.paginas, capa_url: dados.capa || null,
+  }, 'dados bibliográficos');
+  await alterar('exemplares', String(exemplar.id), { formato: dados.formato }, 'formato');
+  await alterar('leituras', String(leitura.id), { status: dados.status }, 'status');
+  if (avaliacoes.length) {
+    await alterar('avaliacoes', String(avaliacoes[0].id),
+      { nota: dados.nota, favorito: dados.favorito }, 'avaliação');
+  } else if (dados.nota !== null || dados.favorito) {
+    const { error } = await supabase.from('avaliacoes').insert({
+      usuario_id: usuarioId, leitura_id: leitura.id, nota: dados.nota, favorito: dados.favorito,
+    });
+    if (error) throw new EdicaoParcialError('avaliação', error);
+  }
+  if (dados.desejo && !desejos.length) {
+    const { error } = await supabase.from('lista_desejos').insert({ usuario_id: usuarioId, livro_id: id });
+    if (error) throw new EdicaoParcialError('lista de desejos', error);
+  } else if (!dados.desejo && desejos.length) {
+    const { error } = await supabase.from('lista_desejos').delete()
+      .eq('usuario_id', usuarioId).eq('id', String(desejos[0].id));
+    if (error) throw new EdicaoParcialError('lista de desejos', error);
+  }
+}
