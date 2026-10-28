@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { BookOpen, LibraryBig, Heart, BookMarked, ChartNoAxesColumn, Sparkles, Plus, Search, LogOut, Download, Pencil, Trash2 } from 'lucide-react';
 import Login from './components/Login';
@@ -7,6 +7,7 @@ import FormularioLivro from './components/FormularioLivro';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
 import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError } from './services/livrosSupabase';
+import { buscarDuplicatasSupabase, encontrarDuplicatas, mensagemDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro } from './types/livro';
 import { ROTULOS_STATUS } from './types/livro';
 
@@ -21,6 +22,7 @@ export default function App() {
   const [livros, setLivros] = useState<Livro[]>([]);
   const [carregandoLivros, setCarregandoLivros] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const salvandoRef = useRef(false);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -100,18 +102,26 @@ export default function App() {
   }
 
   async function salvarCadastro(dados: DadosLivro) {
-    if (salvando) return;
-    if (modoLocal) {
-      const proximos = editando
-        ? livros.map(livro => livro.id === editando.id ? { ...livro, ...dados } : livro)
-        : [novoLivro(dados), ...livros];
-      if (persistirLocal(proximos)) { setModalAberto(false); setEditando(null); }
-      return;
-    }
-    if (!usuarioId || editando) return;
+    if (salvandoRef.current) return;
+    salvandoRef.current = true;
     setSalvando(true);
     setErroArmazenamento('');
     try {
+      if (modoLocal) {
+        if (!editando) {
+          const duplicatas = encontrarDuplicatas(dados, livros);
+          if (duplicatas.length && !window.confirm(mensagemDuplicatas(duplicatas))) return;
+        }
+        const proximos = editando
+          ? livros.map(livro => livro.id === editando.id ? { ...livro, ...dados } : livro)
+          : [novoLivro(dados), ...livros];
+        if (persistirLocal(proximos)) { setModalAberto(false); setEditando(null); }
+        return;
+      }
+      if (!usuarioId || editando) return;
+      // Consulta atualizada antes de inserir; não depende só da estante em memória.
+      const duplicatas = await buscarDuplicatasSupabase(dados, usuarioId);
+      if (duplicatas.length && !window.confirm(mensagemDuplicatas(duplicatas))) return;
       await cadastrarLivroSupabase(dados, usuarioId);
       const atualizados = await listarLivrosSupabase(usuarioId);
       setLivros(atualizados);
@@ -122,8 +132,8 @@ export default function App() {
       setErroArmazenamento(erro instanceof CadastroParcialError
         ? erro.message
         : `Não foi possível concluir o cadastro ou atualizar a estante: ${String(erro instanceof Error ? erro.message : erro)}. Confira a estante antes de repetir.`);
-      // Mantém o formulário aberto; nenhum dado local ou remoto é excluído.
     } finally {
+      salvandoRef.current = false;
       setSalvando(false);
     }
   }
