@@ -26,6 +26,7 @@ export default function App() {
   const salvandoRef = useRef(false);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
+  const [detalhes, setDetalhes] = useState<Livro | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
   const [pendente, setPendente] = useState<DadosLivro | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -218,38 +219,58 @@ export default function App() {
           {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} /></div>}
           {!carregandoLivros && !erroArmazenamento && livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
           : <div className="grade-livros">{livrosExibidos.map(livro => (
-            <article className="cartao-livro" key={livro.id}>
-              <div className="capa-livro">
-                {livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={44} />}
-              </div>
-              <div className="cartao-livro-corpo">
-                <div className="cartao-livro-etiquetas">
-                  <span className="cartao-livro-formato">{livro.formato === 'fisico' ? '📚 Físico' : '📱 Ebook'}</span>
-                  {livro.desejo && <span className="cartao-livro-desejo">♡ Desejado</span>}
-                </div>
-                <div className="cartao-livro-identidade">
-                  <h4 title={livro.titulo}>{livro.titulo}</h4>
-                  <p title={livro.autor}>{livro.autor}</p>
-                </div>
-                <div className="cartao-livro-metadados">
-                  <span className={`cartao-status cartao-status--${livro.status}`}>{ROTULOS_STATUS[livro.status]}</span>
-                  {livro.genero && <span className="cartao-livro-genero" title={livro.genero}>{livro.genero}</span>}
-                </div>
+            <article className="cartao-livro cartao-livro-compacto" key={livro.id}>
+              <div className="capa-livro capa-livro-compacta">
+                <button type="button" className="capa-abrir" onClick={() => setDetalhes(livro)} aria-label={`Consultar ficha de ${livro.titulo}`} title="Ver ficha completa">
+                  {livro.capa ? <img src={livro.capa} alt={`Capa de ${livro.titulo}`} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <BookOpen size={45} />}
+                </button>
+                <button type="button" className="capa-editar" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={17} /></button>
+                <span className={`capa-status cartao-status--${livro.status}`}>{ROTULOS_STATUS[livro.status]}</span>
                 {(livro.nota !== null || livro.favorito) && (
-                  <div className="cartao-livro-avaliacao">
-                    {livro.nota !== null && <span className="cartao-livro-nota" aria-label={`Nota ${livro.nota} de 10`}>★ <strong>{livro.nota.toLocaleString('pt-BR')}</strong><span>/10</span></span>}
-                    {livro.favorito && <span className="cartao-livro-favorito">♥ Favorito</span>}
+                  <div className="capa-avaliacao">
+                    {livro.nota !== null && <span className="capa-nota" title={`Nota ${livro.nota} de 10`}>★ {livro.nota.toLocaleString('pt-BR')}</span>}
+                    {livro.favorito && <Heart size={17} fill="currentColor" aria-label="Favorito" className="capa-coracao" />}
                   </div>
                 )}
-                <div className="cartao-livro-rodape">
-                  <button type="button" className="botao-icone cartao-editar" title="Editar livro" aria-label={`Editar ${livro.titulo}`} onClick={() => { setEditando(livro); setModalAberto(true); }}><Pencil size={16} /> <span>Editar</span></button>
-                  {modoLocal && <button type="button" className="botao-icone" title="Excluir livro" aria-label={`Excluir ${livro.titulo}`} onClick={() => excluirLivro(livro)}><Trash2 size={17} /></button>}
-                </div>
+              </div>
+              <div className="cartao-livro-corpo cartao-livro-corpo-compacto">
+                <h4 title={livro.titulo}>{livro.titulo}</h4>
+                <p title={livro.autor}>{livro.autor}</p>
               </div>
             </article>
           ))}</div>}
         </section>
       </main>
+      {detalhes && (
+        <div className="modal-fundo" onMouseDown={evento => { if (evento.target === evento.currentTarget) setDetalhes(null); }}>
+          <section className="modal-livro ficha-livro" role="dialog" aria-modal="true" aria-labelledby="ficha-titulo">
+            <header className="modal-cabecalho">
+              <div><span className="subtitulo">SUA COLEÇÃO</span><h2 id="ficha-titulo">Ficha do livro</h2></div>
+              <button type="button" className="botao-icone" aria-label="Fechar ficha" onClick={() => setDetalhes(null)}>✕</button>
+            </header>
+            <div className="ficha-conteudo">
+              <div className="ficha-capa">{detalhes.capa ? <img src={detalhes.capa} alt={`Capa de ${detalhes.titulo}`} /> : <BookOpen size={56} />}</div>
+              <div className="ficha-informacoes">
+                <h3>{detalhes.titulo}</h3>
+                <p className="ficha-autor">{detalhes.autor}</p>
+                <dl>
+                  <dt>Formato</dt><dd>{detalhes.formato === 'fisico' ? 'Livro físico' : 'Ebook'}</dd>
+                  <dt>Status</dt><dd>{ROTULOS_STATUS[detalhes.status]}</dd>
+                  <dt>Gênero</dt><dd>{detalhes.genero || 'Não informado'}</dd>
+                  <dt>Páginas</dt><dd>{detalhes.paginas ?? 'Não informado'}</dd>
+                  <dt>Nota pessoal</dt><dd>{detalhes.nota === null ? 'Sem avaliação' : `${detalhes.nota.toLocaleString('pt-BR')} / 10`}</dd>
+                  <dt>Favorito</dt><dd>{detalhes.favorito ? 'Sim ♥' : 'Não'}</dd>
+                  <dt>Lista de desejos</dt><dd>{detalhes.desejo ? 'Sim' : 'Não'}</dd>
+                </dl>
+              </div>
+            </div>
+            <div className="modal-acoes ficha-acoes">
+              <button type="button" className="botao-secundario" onClick={() => setDetalhes(null)}>Fechar</button>
+              <button type="button" className="botao-primario" onClick={() => { setEditando(detalhes); setDetalhes(null); setModalAberto(true); }}><Pencil size={16} /> Editar livro</button>
+            </div>
+          </section>
+        </div>
+      )}
       {aviso.length > 0 && pendente && <AvisoDuplicidade correspondencias={aviso} livros={livros} aoVoltar={() => setAviso([])} aoContinuar={() => { const dados = pendente; setAviso([]); setPendente(null); void salvarCadastro(dados, true); }} aoEditar={(livro) => { setAviso([]); setPendente(null); setEditando(livro); setModalAberto(true); }} />}
       {modalAberto && <FormularioLivro key={editando?.id ?? 'novo'} livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { if (!salvando) { setModalAberto(false); setEditando(null); } }} />}
     </div>
