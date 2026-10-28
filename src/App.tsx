@@ -10,7 +10,7 @@ import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './servi
 import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro } from './types/livro';
-import { ROTULOS_STATUS } from './types/livro';
+import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
 
 type Pagina = 'inicio' | 'fisicos' | 'ebooks' | 'desejos' | 'diario' | 'estatisticas' | 'descobrir';
 
@@ -174,10 +174,10 @@ export default function App() {
   };
   const livrosExibidos = useMemo(() => {
     let selecionados = livros;
-    if (pagina === 'fisicos') selecionados = livros.filter(l => l.formato === 'fisico' && !l.desejo);
-    if (pagina === 'ebooks') selecionados = livros.filter(l => l.formato === 'ebook' && !l.desejo);
+    if (pagina === 'fisicos') selecionados = livros.filter(l => formatosDoLivro(l).includes('fisico'));
+    if (pagina === 'ebooks') selecionados = livros.filter(l => formatosDoLivro(l).includes('ebook'));
     if (pagina === 'desejos') selecionados = livros.filter(l => l.desejo);
-    if (pagina === 'inicio') selecionados = livros.filter(l => !l.desejo);
+    if (pagina === 'inicio') selecionados = livros.filter(l => formatosDoLivro(l).length > 0);
     if (pagina === 'diario') selecionados = livros.filter(l => ['lendo', 'concluido', 'pausado', 'abandonado'].includes(l.status));
     if (pagina === 'descobrir') selecionados = livros.filter(l => l.status === 'quero_ler');
     if (pagina === 'estatisticas') selecionados = livros.filter(l => l.status === 'concluido');
@@ -209,8 +209,8 @@ export default function App() {
           <section className="boas-vindas"><span className="etiqueta">🍃 SUA JORNADA LITERÁRIA</span><h3>Todo livro é uma nova descoberta.</h3><p>Organize suas leituras, guarde suas impressões e descubra histórias que combinam com você.</p><button className="botao-secundario" onClick={() => setPagina('fisicos')}>Explorar minha estante →</button></section>
           <section className="indicadores">
             <div className="indicador"><span>Livros na biblioteca</span><strong>{livros.filter(l => !l.desejo).length}</strong><small>Sua coleção começa aqui</small></div>
-            <div className="indicador"><span>Livros concluídos</span><strong>{livros.filter(l => l.status === 'concluido' && !l.desejo).length}</strong><small>Histórias vividas</small></div>
-            <div className="indicador"><span>Lendo atualmente</span><strong>{livros.filter(l => l.status === 'lendo' && !l.desejo).length}</strong><small>Em andamento</small></div>
+            <div className="indicador"><span>Livros concluídos</span><strong>{livros.filter(l => l.status === 'concluido' && formatosDoLivro(l).length > 0).length}</strong><small>Histórias vividas</small></div>
+            <div className="indicador"><span>Lendo atualmente</span><strong>{livros.filter(l => l.status === 'lendo' && formatosDoLivro(l).length > 0).length}</strong><small>Em andamento</small></div>
             <div className="indicador"><span>Lista de desejos</span><strong>{livros.filter(l => l.desejo).length}</strong><small>Próximas descobertas</small></div>
           </section>
         </>}
@@ -254,7 +254,7 @@ export default function App() {
                 <h3>{detalhes.titulo}</h3>
                 <p className="ficha-autor">{detalhes.autor}</p>
                 <dl>
-                  <dt>Formato</dt><dd>{detalhes.formato === 'fisico' ? 'Livro físico' : 'Ebook'}</dd>
+                  <dt>Exemplares</dt><dd>{formatosDoLivro(detalhes).length ? formatosDoLivro(detalhes).map(f => f === 'fisico' ? 'Físico' : 'Ebook').join(' e ') : 'Ainda não possui'}</dd>
                   <dt>Status</dt><dd>{ROTULOS_STATUS[detalhes.status]}</dd>
                   <dt>Gênero</dt><dd>{detalhes.genero || 'Não informado'}</dd>
                   <dt>Páginas</dt><dd>{detalhes.paginas ?? 'Não informado'}</dd>
