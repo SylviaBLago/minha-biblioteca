@@ -37,6 +37,7 @@ export default function App() {
   const [citacaoTrecho, setCitacaoTrecho] = useState('');
   const [citacaoComentario, setCitacaoComentario] = useState('');
   const [citacaoPagina, setCitacaoPagina] = useState('');
+  const [formCitacaoAberto, setFormCitacaoAberto] = useState(false);
   const [anotacaoEditando, setAnotacaoEditando] = useState<{ id: string; leituraId: string; texto: string; spoiler: boolean } | null>(null);
   const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
@@ -320,7 +321,7 @@ export default function App() {
         await salvarCitacaoSupabase(usuarioId, livro.id, leitura.id, pagina, citacaoTrecho, citacaoComentario);
         setLivros(await listarLivrosSupabase(usuarioId));
       }
-      setCitacaoTrecho(''); setCitacaoComentario(''); setCitacaoPagina('');
+      setCitacaoTrecho(''); setCitacaoComentario(''); setCitacaoPagina(''); setFormCitacaoAberto(false);
     } catch (erro) { setErroArmazenamento('Não foi possível salvar a citação: ' + (erro instanceof Error ? erro.message : String(erro))); }
     finally { salvandoRef.current = false; setSalvando(false); }
   }
@@ -402,13 +403,13 @@ export default function App() {
               <button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar registro'}</button>
             </form>}
             <section className="citacoes-secao">
-              <h4>Citações favoritas</h4>
-              <form className="diario-formulario" onSubmit={e => { e.preventDefault(); void guardarCitacao(); }}>
+              <div className="citacoes-cabecalho"><h4>Citações favoritas</h4><button type="button" className="botao-secundario" aria-expanded={formCitacaoAberto} onClick={() => setFormCitacaoAberto(v => !v)}>{formCitacaoAberto ? 'Cancelar citação' : '+ Adicionar citação'}</button></div>
+              {formCitacaoAberto && <form className="diario-formulario" onSubmit={e => { e.preventDefault(); void guardarCitacao(); }}>
                 <div className="campo-livro"><label htmlFor="citacao-trecho">Trecho favorito</label><textarea id="citacao-trecho" rows={3} maxLength={5000} value={citacaoTrecho} onChange={e => setCitacaoTrecho(e.target.value)} required placeholder="Guarde aqui um trecho marcante do livro." /></div>
                 <div className="campo-livro"><label htmlFor="citacao-pagina">Página</label><input id="citacao-pagina" type="number" min="0" max={livro.paginas ?? undefined} value={citacaoPagina} onChange={e => setCitacaoPagina(e.target.value)} required /></div>
                 <div className="campo-livro"><label htmlFor="citacao-comentario">Comentário (opcional)</label><textarea id="citacao-comentario" rows={2} maxLength={3000} value={citacaoComentario} onChange={e => setCitacaoComentario(e.target.value)} /></div>
                 <button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Guardar citação'}</button>
-              </form>
+              </form>}
               <div className="citacoes-lista">{(leitura.atualizacoes ?? []).filter(r => interpretarCitacao(r.texto ?? '') !== null).map(registro => {
                 const citacao = interpretarCitacao(registro.texto ?? '');
                 if (!citacao) return null;
