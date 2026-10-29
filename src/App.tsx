@@ -303,6 +303,17 @@ export default function App() {
               <div className="cartao-livro-corpo cartao-livro-corpo-compacto">
                 <h4 title={livro.titulo}>{livro.titulo}</h4>
                 <p title={livro.autor}>{livro.autor}</p>
+                {(() => {
+                  const atual = livro.historico?.find(leitura => leitura.status === 'lendo');
+                  if (!atual || !livro.paginas || livro.paginas <= 0) return null;
+                  const percentual = Math.min(100, Math.max(0, Math.round(atual.paginaAtual / livro.paginas * 100)));
+                  return <div className="cartao-progresso" title={`${atual.paginaAtual} de ${livro.paginas} páginas`}>
+                    <div className="cartao-progresso-linha"><span>Progresso</span><span>{percentual}%</span></div>
+                    <div className="progresso-trilho" role="progressbar" aria-label={`Progresso de ${livro.titulo}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentual}>
+                      <div className="progresso-preenchimento" style={{ width: `${percentual}%` }} />
+                    </div>
+                  </div>;
+                })()}
               </div>
             </article>
           ))}</div>}
@@ -349,8 +360,22 @@ export default function App() {
                       <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
                       <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
                       {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
-                      {leitura.status === 'lendo' && <button type="button" className="botao-primario" onClick={() => { setProgresso({ livro: detalhes, leitura }); setPaginaProgresso(String(leitura.paginaAtual)); setDetalhes(null); }}>Atualizar progresso</button>}
-                      <button type="button" className="botao-secundario" aria-label={`Editar ${indice === realizadas.length - 1 ? 'primeira leitura' : 'leitura ' + (realizadas.length - indice)} de ${detalhes.titulo}`} onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar esta leitura</button>
+                      <div className="ficha-leitura-rodape">
+                        <div className="progresso-leitura">
+                          {detalhes.paginas !== null && detalhes.paginas > 0 ? (
+                            <>
+                              <div className="progresso-legenda"><span>{leitura.status === 'concluido' ? 'Leitura concluída' : `${leitura.paginaAtual} de ${detalhes.paginas} páginas`}</span><span>{leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, Math.round(leitura.paginaAtual / detalhes.paginas * 100)))}%</span></div>
+                              <div className="progresso-trilho" role="progressbar" aria-label="Progresso da leitura" aria-valuemin={0} aria-valuemax={100} aria-valuenow={leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, Math.round(leitura.paginaAtual / detalhes.paginas * 100)))}>
+                                <div className="progresso-preenchimento" style={{ width: `${leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, leitura.paginaAtual / detalhes.paginas * 100))}%` }} />
+                              </div>
+                            </>
+                          ) : <span className="progresso-sem-total">{leitura.paginaAtual} páginas registradas</span>}
+                        </div>
+                        <div className="ficha-leitura-acoes">
+                          {leitura.status === 'lendo' && <button type="button" className="ficha-acao-suave" onClick={() => { setProgresso({ livro: detalhes, leitura }); setPaginaProgresso(String(leitura.paginaAtual)); setDetalhes(null); }}>Atualizar progresso</button>}
+                          <button type="button" className="ficha-acao-suave" aria-label={`Editar ${indice === realizadas.length - 1 ? 'primeira leitura' : 'leitura ' + (realizadas.length - indice)} de ${detalhes.titulo}`} onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar leitura</button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </section>
