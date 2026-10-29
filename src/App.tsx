@@ -30,7 +30,7 @@ export default function App() {
   const [detalhes, setDetalhes] = useState<Livro | null>(null);
   const [progresso, setProgresso] = useState<{ livro: Livro; leitura: HistoricoLeitura } | null>(null);
   const [paginaProgresso, setPaginaProgresso] = useState('');
-  const [leituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
+  const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
   const [pendente, setPendente] = useState<DadosLivro | null>(null);
   const [buscando, setBuscando] = useState(false);
