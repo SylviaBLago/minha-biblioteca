@@ -31,6 +31,9 @@ export interface Livro {
   nota: number | null;
   criadoEm: string;
   historico?: HistoricoLeitura[];
+  paginaAtual?: number;
+  dataInicio?: string | null;
+  dataFim?: string | null;
 }
 
 export type DadosLivro = Omit<Livro, 'id' | 'criadoEm'>;
