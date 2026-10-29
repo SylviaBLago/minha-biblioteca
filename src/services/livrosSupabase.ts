@@ -72,6 +72,9 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
       formatos: formatosPorLivro.get(id) ?? [],
       possui: (formatosPorLivro.get(id)?.length ?? 0) > 0,
       status: statusPermitidos.includes(status as StatusLivro) ? status as StatusLivro : 'quero_ler',
+      paginaAtual: Number(leitura?.pagina_atual ?? 0),
+      dataInicio: leitura?.data_inicio == null ? null : String(leitura.data_inicio),
+      dataFim: leitura?.data_fim == null ? null : String(leitura.data_fim),
       desejo: idsDesejados.has(id),
       favorito: avaliacao?.favorito === true,
       nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
@@ -122,7 +125,7 @@ export async function cadastrarLivroSupabase(dados: DadosLivro, usuarioId: strin
     await inserir('exemplares', { usuario_id: usuarioId, livro_id: livroId, formato }, 'o formato do exemplar');
   }
   const leituraId = crypto.randomUUID();
-  await inserir('leituras', { id: leituraId, usuario_id: usuarioId, livro_id: livroId, status: dados.status }, 'o status de leitura');
+  await inserir('leituras', { id: leituraId, usuario_id: usuarioId, livro_id: livroId, status: dados.status, pagina_atual: dados.paginaAtual ?? 0, data_inicio: dados.dataInicio ?? null, data_fim: dados.status === 'concluido' ? dados.dataFim ?? null : null }, 'o status de leitura');
   if (dados.nota !== null || dados.favorito) {
     await inserir('avaliacoes', { usuario_id: usuarioId, leitura_id: leituraId, nota: dados.nota, favorito: dados.favorito }, 'a avaliação');
   }
@@ -178,7 +181,7 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     });
     if (error) throw new EdicaoParcialError('inclusão de exemplar', error);
   }
-  await alterar('leituras', String(leitura.id), { status: dados.status }, 'status');
+  await alterar('leituras', String(leitura.id), { status: dados.status, pagina_atual: dados.paginaAtual ?? 0, data_inicio: dados.dataInicio ?? null, data_fim: dados.status === 'concluido' ? dados.dataFim ?? null : null }, 'informações da leitura');
   if (avaliacoes.length) {
     await alterar('avaliacoes', String(avaliacoes[0].id),
       { nota: dados.nota, favorito: dados.favorito }, 'avaliação');
