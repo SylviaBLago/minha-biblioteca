@@ -265,21 +265,36 @@ export default function App() {
                 </dl>
               </div>
             </div>
-            <section className="ficha-historico" aria-label="Histórico de leituras">
-              <h3>Histórico de leituras</h3>
-              {detalhes.historico?.length ? detalhes.historico.map((leitura, indice) => (
-                <div className="ficha-leitura" key={leitura.id}>
-                  <div className="ficha-leitura-topo">
-                    <strong>{indice === detalhes.historico!.length - 1 ? 'Primeira leitura' : `Leitura ${detalhes.historico!.length - indice}`}</strong>
-                    <span>{ROTULOS_STATUS[leitura.status]}</span>
-                  </div>
-                  <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
-                  <p>Página atual: {leitura.paginaAtual} · Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
-                  {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
+            {(() => {
+              const realizadas = (detalhes.historico ?? []).filter(leitura =>
+                leitura.status !== 'quero_ler' || leitura.dataInicio !== null ||
+                leitura.dataFim !== null || leitura.paginaAtual > 0
+              );
+              return realizadas.length > 0 ? (
+                <section className="ficha-historico" aria-label="Histórico de leituras">
+                  <h3>Histórico de leituras</h3>
+                  {realizadas.map((leitura, indice) => (
+                    <div className="ficha-leitura" key={leitura.id}>
+                      <div className="ficha-leitura-topo">
+                        <strong>{indice === realizadas.length - 1 ? 'Primeira leitura' : `Leitura ${realizadas.length - indice}`}</strong>
+                        <span>{ROTULOS_STATUS[leitura.status]}</span>
+                      </div>
+                      <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
+                      <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
+                      {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
+                    </div>
+                  ))}
+                </section>
+              ) : (
+                <div className="ficha-sem-historico">
+                  <button type="button" className="botao-secundario" onClick={() => {
+                    setEditando({ ...detalhes, status: 'lendo', paginaAtual: 0, dataInicio: null, dataFim: null });
+                    setDetalhes(null);
+                    setModalAberto(true);
+                  }}><Plus size={17} /> Adicionar leitura</button>
                 </div>
-              )) : <p className="ficha-sem-leituras">Nenhuma leitura registrada nesta ficha.</p>}
-              {modoLocal && <p className="ficha-ajuda">Histórico detalhado disponível para os livros sincronizados com Supabase.</p>}
-            </section>
+              );
+            })()}
             <div className="modal-acoes ficha-acoes">
               {modoLocal && <button type="button" className="botao-secundario" onClick={() => { const livro = detalhes; setDetalhes(null); excluirLivro(livro); }}><Trash2 size={16} /> Excluir livro local</button>}
               <button type="button" className="botao-secundario" onClick={() => setDetalhes(null)}>Fechar</button>
