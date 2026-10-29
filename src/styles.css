@@ -849,3 +849,9 @@ button:focus-visible {
 .diario-edicao textarea { width:100%; border:1px solid #dcd8ca; border-radius:9px; padding:11px; font:inherit; background:#fff; resize:vertical; }
 .diario-edicao-acoes { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
 .diario-editar-registro { margin-top:9px; background:transparent; color:#49634b; border:0; padding:5px 0; text-decoration:underline; text-underline-offset:3px; cursor:pointer; font-size:12px; }
+
+.diario-registro-acoes { display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:8px; }
+.diario-registro-acoes .diario-editar-registro { margin-top:0; }
+.diario-excluir-registro { border:0; background:transparent; color:#926d61; padding:5px 0; font-size:12px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.diario-excluir-registro:disabled { opacity:.55; cursor:wait; }
+.diario-excluir-registro:focus-visible { outline:2px solid #926d61; outline-offset:3px; }
