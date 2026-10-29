@@ -8,7 +8,7 @@ import FormularioLeitura, { type DadosLeitura } from './components/FormularioLei
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase, excluirAnotacaoSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
@@ -277,6 +277,28 @@ export default function App() {
     } finally { salvandoRef.current = false; setSalvando(false); }
   }
 
+  async function excluirEntradaDiario(leituraId: string, registroId: string) {
+    if (!diarioSelecionado || salvandoRef.current) return;
+    if (!window.confirm('Excluir esta anotação do diário? Esta ação não poderá ser desfeita. O progresso da leitura será mantido.')) return;
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        if (!persistirLocal(livros.map(l => l.id !== diarioSelecionado.livroId ? l : {
+          ...l, historico: (l.historico ?? []).map(leitura => leitura.id !== leituraId ? leitura : {
+            ...leitura, atualizacoes: (leitura.atualizacoes ?? []).filter(registro => registro.id !== registroId),
+          }),
+        }))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await excluirAnotacaoSupabase(usuarioId, leituraId, registroId);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      if (anotacaoEditando?.id === registroId) setAnotacaoEditando(null);
+    } catch (erro) {
+      setErroArmazenamento('Não foi possível excluir a anotação: ' + (erro instanceof Error ? erro.message : String(erro)));
+    } finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
   function excluirLivro(livro: Livro) {
     if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
@@ -363,7 +385,10 @@ export default function App() {
                 <div className="diario-edicao-acoes"><button type="button" className="botao-secundario" disabled={salvando} onClick={() => setAnotacaoEditando(null)}>Cancelar</button><button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</button></div>
               </form> : <>
                 {registro.contemSpoiler ? <details><summary>Mostrar anotação com spoiler</summary><p>{registro.texto}</p></details> : <p>{registro.texto}</p>}
-                <button type="button" className="diario-editar-registro" onClick={() => setAnotacaoEditando({ id: registro.id, leituraId: leitura.id, texto: registro.texto ?? '', spoiler: registro.contemSpoiler ?? false })}>Editar anotação</button>
+                <div className="diario-registro-acoes">
+                  <button type="button" className="diario-editar-registro" onClick={() => setAnotacaoEditando({ id: registro.id, leituraId: leitura.id, texto: registro.texto ?? '', spoiler: registro.contemSpoiler ?? false })}>Editar anotação</button>
+                  <button type="button" className="diario-excluir-registro" disabled={salvando} onClick={() => { void excluirEntradaDiario(leitura.id, registro.id); }}>Excluir anotação</button>
+                </div>
               </>}
             </article>)}</div> : <p>Esta leitura ainda não tem registros no diário.</p>}
           </section>;
