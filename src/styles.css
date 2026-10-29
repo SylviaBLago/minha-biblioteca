@@ -817,3 +817,28 @@ button:focus-visible {
 .ficha-registros-progresso ul { padding: 6px 0 0; margin: 0; list-style: none; }
 .ficha-registros-progresso li { display: flex; gap: 12px; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e6dfd3; }
 .ficha-registros-progresso li strong { color: #49634b; font-weight: 600; }
+
+/* Cartão horizontal de leitura aprovado e diário individual */
+.ficha-leitura { background: #faf8f4; border: 1px solid #e6dfd5; border-radius: 15px; padding: 15px; }
+.ficha-leitura-rodape { display: flex; flex-direction: column; gap: 11px; align-items: stretch; margin-top: 13px; }
+.ficha-leitura-acoes { display: flex; flex-direction: row; justify-content: flex-end; gap: 7px; width: 100%; }
+.ficha-leitura-acoes .ficha-acao-suave { width: auto; min-width: 0; padding: 7px 10px; font-size: 11px; background: #fffdf9; color: #354f3d; }
+.progresso-leitura { width: 100%; padding: 0; }
+.progresso-trilho { width: 100%; }
+.diario-pagina { max-width: 780px; margin: 22px auto; }
+.diario-cabecalho { margin: 24px 0; }
+.diario-cabecalho h3 { font: 600 30px 'Playfair Display', serif; color: #354f3d; margin: 7px 0; }
+.diario-cabecalho p { font-size: 13px; color: #82766b; }
+.diario-formulario,.diario-entrada { background: #faf8f4; border: 1px solid #e6dfd5; border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.diario-formulario { display: flex; flex-direction: column; gap: 13px; }
+.diario-formulario h4,.diario-pagina > h4 { color: #354f3d; font-size: 17px; }
+.diario-formulario .campo-livro { display: flex; flex-direction: column; gap: 7px; }
+.diario-formulario input[type="number"],.diario-formulario textarea { width: 100%; padding: 11px; border: 1px solid #dcd8ca; border-radius: 9px; background: #fff; font: inherit; }
+.diario-checkbox { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #82766b; }
+.diario-checkbox input { accent-color: #354f3d; }
+.diario-formulario .botao-primario { align-self: flex-end; }
+.diario-entrada-cabecalho { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 12px; color: #49634b; }
+.diario-entrada p { font-size: 13px; line-height: 1.65; white-space: pre-wrap; color: #514f47; }
+.diario-entrada details { font-size: 12px; margin-top: 12px; }
+.diario-entrada summary { cursor: pointer; }
+@media(max-width:520px) { .ficha-leitura-rodape { display: flex; } .ficha-leitura-acoes { flex-direction: row; } .diario-formulario,.diario-entrada { padding: 15px; } }
