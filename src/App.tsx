@@ -319,7 +319,7 @@ export default function App() {
                       <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
                       <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
                       {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
-                      <button type="button" className="botao-secundario" onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar esta leitura</button>
+                      <button type="button" className="botao-secundario" aria-label={`Editar ${indice === realizadas.length - 1 ? 'primeira leitura' : 'leitura ' + (realizadas.length - indice)} de ${detalhes.titulo}`} onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar esta leitura</button>
                     </div>
                   ))}
                 </section>
