@@ -1,3 +1,4 @@
+import type { DadosLeitura } from '../components/FormularioLeitura';
 import { supabase } from './supabase';
 import type { DadosLivro, Livro, FormatoLivro, StatusLivro } from '../types/livro';
 
@@ -153,9 +154,7 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     obter('leituras', 'livro_id', id), obter('lista_desejos', 'livro_id', id),
   ]);
   if (livros.length !== 1) throw new Error('Livro não encontrado na sua conta.');
-  if (leituras.length !== 1)
-    throw new Error('Este livro tem múltiplas leituras ou nenhuma leitura. A edição das releituras será disponibilizada na próxima etapa.');
-  const leitura = leituras[0];
+  const leitura = leituras.length === 1 ? leituras[0] : null;
   const atuais: FormatoLivro[] = [...new Set(exemplares.map(e => e.formato).filter((f): f is FormatoLivro => f === 'fisico' || f === 'ebook'))];
   const solicitados = [...new Set(dados.formatos ?? (dados.possui === false ? [] : [dados.formato]))];
   if (exemplares.length >= 100)
@@ -163,7 +162,7 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
   const remover = exemplares.filter(e => !solicitados.includes(e.formato as FormatoLivro));
   const adicionar = solicitados.filter(formato => !atuais.includes(formato));
   const desejaAdquirir = solicitados.length === 0 && dados.desejo;
-  const avaliacoes = await obter('avaliacoes', 'leitura_id', String(leitura.id));
+  const avaliacoes = leitura ? await obter('avaliacoes', 'leitura_id', String(leitura.id)) : [];
   if (avaliacoes.length > 1 || desejos.length > 1)
     throw new Error('Foram encontrados registros relacionados ambíguos. Nenhuma alteração foi iniciada.');
   const alterar = async (tabela: string, registroId: string, valores: Record<string, unknown>, etapa: string) => {
@@ -181,11 +180,11 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     });
     if (error) throw new EdicaoParcialError('inclusão de exemplar', error);
   }
-  await alterar('leituras', String(leitura.id), { status: dados.status, pagina_atual: dados.paginaAtual ?? 0, data_inicio: dados.dataInicio ?? null, data_fim: dados.status === 'concluido' ? dados.dataFim ?? null : null }, 'informações da leitura');
+  if (leitura) await alterar('leituras', String(leitura.id), { status: dados.status, pagina_atual: dados.paginaAtual ?? 0, data_inicio: dados.dataInicio ?? null, data_fim: dados.status === 'concluido' ? dados.dataFim ?? null : null }, 'informações da leitura');
   if (avaliacoes.length) {
     await alterar('avaliacoes', String(avaliacoes[0].id),
       { nota: dados.nota, favorito: dados.favorito }, 'avaliação');
-  } else if (dados.nota !== null || dados.favorito) {
+  } else if (leitura && (dados.nota !== null || dados.favorito)) {
     const { error } = await supabase.from('avaliacoes').insert({
       usuario_id: usuarioId, leitura_id: leitura.id, nota: dados.nota, favorito: dados.favorito,
     });
@@ -205,4 +204,49 @@ export async function editarLivroSupabase(id: string, usuarioId: string, dados: 
     if (error) throw new EdicaoParcialError('retirada de exemplar', error);
   }
 
+}
+
+export async function salvarLeituraSupabase(livroId: string, usuarioId: string, dados: DadosLeitura, leituraId?: string): Promise<void> {
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('id')
+    .eq('id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado na sua conta.');
+  const valores = {
+    status: dados.status, pagina_atual: dados.status === 'concluido' ? 0 : dados.paginaAtual,
+    data_inicio: dados.dataInicio, data_fim: dados.status === 'concluido' ? dados.dataFim : null,
+  };
+  let id = leituraId;
+  if (id) {
+    const { data: leitura, error } = await supabase.from('leituras').update(valores).eq('id', id)
+      .eq('livro_id', livroId).eq('usuario_id', usuarioId).select('id').maybeSingle();
+    if (error || !leitura) throw new Error('Não foi possível atualizar a leitura selecionada: ' + (error?.message ?? 'registro não encontrado'));
+  } else {
+    // Uma leitura ainda não iniciada pode ser aproveitada sem gerar histórico artificial.
+    const { data: antigas, error: erroConsulta } = await supabase.from('leituras')
+      .select('id,status,pagina_atual,data_inicio,data_fim').eq('livro_id', livroId).eq('usuario_id', usuarioId).limit(100);
+    if (erroConsulta) throw new Error(erroConsulta.message);
+    const disponiveis = (antigas ?? []).filter(l => l.status === 'quero_ler' && !l.data_inicio && !l.data_fim && Number(l.pagina_atual ?? 0) === 0);
+    if (antigas?.length === 1 && disponiveis.length === 1) {
+      id = disponiveis[0].id;
+      const { error } = await supabase.from('leituras').update(valores).eq('id', id)
+        .eq('livro_id', livroId).eq('usuario_id', usuarioId);
+      if (error) throw new Error(error.message);
+    } else {
+      id = crypto.randomUUID();
+      const { error } = await supabase.from('leituras').insert({ id, livro_id: livroId, usuario_id: usuarioId, ...valores });
+      if (error) throw new Error('Não foi possível criar a leitura: ' + error.message);
+    }
+  }
+  const { data: avaliacoes, error: erroAvaliacoes } = await supabase.from('avaliacoes').select('id')
+    .eq('leitura_id', id).eq('usuario_id', usuarioId).limit(2);
+  if (erroAvaliacoes) throw new EdicaoParcialError('consulta da avaliação', erroAvaliacoes);
+  if (avaliacoes?.length) {
+    const { error } = await supabase.from('avaliacoes').update({ nota: dados.nota, favorito: dados.favorito })
+      .eq('id', avaliacoes[0].id).eq('usuario_id', usuarioId);
+    if (error) throw new EdicaoParcialError('avaliação da leitura', error);
+  } else if (dados.nota !== null || dados.favorito) {
+    const { error } = await supabase.from('avaliacoes').insert({
+      usuario_id: usuarioId, leitura_id: id, nota: dados.nota, favorito: dados.favorito,
+    });
+    if (error) throw new EdicaoParcialError('avaliação da leitura', error);
+  }
 }
