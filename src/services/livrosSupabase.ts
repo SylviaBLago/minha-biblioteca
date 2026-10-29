@@ -304,3 +304,13 @@ export async function registrarDiarioSupabase(usuarioId: string, livroId: string
   });
   if (erroRegistro) throw new EdicaoParcialError('salvamento do diário', erroRegistro);
 }
+
+/** Edita apenas o texto e o marcador de spoiler, sem alterar o progresso registrado. */
+export async function editarAnotacaoSupabase(usuarioId: string, leituraId: string, registroId: string, texto: string, contemSpoiler: boolean): Promise<void> {
+  if (!texto.trim()) throw new Error('A anotação não pode ficar vazia.');
+  const { data, error } = await supabase.from('diario_leitura')
+    .update({ texto: texto.trim(), contem_spoiler: contemSpoiler })
+    .eq('usuario_id', usuarioId).eq('leitura_id', leituraId).eq('id', registroId)
+    .select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível editar a anotação selecionada: ' + (error?.message ?? 'registro não encontrado'));
+}
