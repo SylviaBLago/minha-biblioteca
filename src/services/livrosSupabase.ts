@@ -314,3 +314,11 @@ export async function editarAnotacaoSupabase(usuarioId: string, leituraId: strin
     .select('id').maybeSingle();
   if (error || !data) throw new Error('Não foi possível editar a anotação selecionada: ' + (error?.message ?? 'registro não encontrado'));
 }
+
+/** Remove somente a entrada escolhida do diário, nunca a leitura ou seu progresso atual. */
+export async function excluirAnotacaoSupabase(usuarioId: string, leituraId: string, registroId: string): Promise<void> {
+  const { data, error } = await supabase.from('diario_leitura').delete()
+    .eq('usuario_id', usuarioId).eq('leitura_id', leituraId).eq('id', registroId)
+    .select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível excluir a anotação selecionada: ' + (error?.message ?? 'registro não encontrado'));
+}
