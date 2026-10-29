@@ -842,3 +842,10 @@ button:focus-visible {
 .diario-entrada details { font-size: 12px; margin-top: 12px; }
 .diario-entrada summary { cursor: pointer; }
 @media(max-width:520px) { .ficha-leitura-rodape { display: flex; } .ficha-leitura-acoes { flex-direction: row; } .diario-formulario,.diario-entrada { padding: 15px; } }
+
+/* Edição pontual de anotação no diário */
+.diario-edicao { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.diario-edicao > label { font-size:12px; font-weight:600; color:#354f3d; }
+.diario-edicao textarea { width:100%; border:1px solid #dcd8ca; border-radius:9px; padding:11px; font:inherit; background:#fff; resize:vertical; }
+.diario-edicao-acoes { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.diario-editar-registro { margin-top:9px; background:transparent; color:#49634b; border:0; padding:5px 0; text-decoration:underline; text-underline-offset:3px; cursor:pointer; font-size:12px; }
