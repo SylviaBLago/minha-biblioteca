@@ -31,6 +31,7 @@ function dadosIniciais(livro?: Livro | null): DadosLivro {
 
 export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
   const [dados, setDados] = useState<DadosLivro>(() => dadosIniciais(livro));
+  const variasLeituras = (livro?.historico?.length ?? 0) > 1;
 
   useEffect(() => {
     function aoTeclar(evento: KeyboardEvent) {
@@ -83,9 +84,9 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
                 })}
               </div>
             </div>
-            <div className="campo-livro"><label htmlFor="livro-status">Status de leitura</label><select id="livro-status" value={dados.status} onChange={(e) => atualizar('status', e.target.value as StatusLivro)}>{(Object.entries(ROTULOS_STATUS) as [StatusLivro, string][]).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}</select></div>
+            {!variasLeituras && <div className="campo-livro"><label htmlFor="livro-status">Status de leitura</label><select id="livro-status" value={dados.status} onChange={(e) => atualizar('status', e.target.value as StatusLivro)}>{(Object.entries(ROTULOS_STATUS) as [StatusLivro, string][]).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}</select></div>}
           </div>
-          {(dados.status === 'lendo' || dados.status === 'concluido') && (
+          {!variasLeituras && (dados.status === 'lendo' || dados.status === 'concluido') && (
             <fieldset className="secao-informacoes-leitura">
               <legend>Informações da leitura</legend>
               <div className="formulario-grade">
@@ -99,9 +100,10 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
           <p className="observacao-exemplares">Deixe as duas opções desmarcadas se ainda não possui o livro. Ao marcar um exemplar, o livro sai automaticamente da lista de desejos.</p>
           <div className="campo-livro"><label htmlFor="livro-capa">Endereço da capa (URL)</label><input id="livro-capa" type="url" value={dados.capa} onChange={(e) => atualizar('capa', e.target.value)} placeholder="https://..." /><small>Opcional. Por enquanto, use o endereço de uma imagem disponível na internet.</small></div>
           <div className="formulario-grade">
-            <div className="campo-livro"><label htmlFor="livro-nota">Nota pessoal (0 a 10)</label><input id="livro-nota" type="number" min="0" max="10" step="0.5" value={dados.nota ?? ''} onChange={(e) => atualizar('nota', e.target.value === '' ? null : Number(e.target.value))} /></div>
-            <div className="formulario-opcoes"><label><input type="checkbox" checked={dados.desejo && (dados.formatos ?? []).length === 0} disabled={(dados.formatos ?? []).length > 0} onChange={(e) => atualizar('desejo', e.target.checked)} /> Na lista de desejos</label><label><input type="checkbox" checked={dados.favorito} onChange={(e) => atualizar('favorito', e.target.checked)} /> Livro favorito</label></div>
+            {!variasLeituras && <div className="campo-livro"><label htmlFor="livro-nota">Nota pessoal (0 a 10)</label><input id="livro-nota" type="number" min="0" max="10" step="0.5" value={dados.nota ?? ''} onChange={(e) => atualizar('nota', e.target.value === '' ? null : Number(e.target.value))} /></div>}
+            <div className="formulario-opcoes"><label><input type="checkbox" checked={dados.desejo && (dados.formatos ?? []).length === 0} disabled={(dados.formatos ?? []).length > 0} onChange={(e) => atualizar('desejo', e.target.checked)} /> Na lista de desejos</label>{!variasLeituras && <label><input type="checkbox" checked={dados.favorito} onChange={(e) => atualizar('favorito', e.target.checked)} /> Livro favorito</label>}</div>
           </div>
+          {variasLeituras && <p className="observacao-exemplares">Para alterar status, datas, progresso ou nota, utilize “Editar esta leitura” na ficha do livro.</p>}
           <div className="modal-acoes"><button type="button" className="botao-secundario" onClick={aoFechar}>Cancelar</button><button type="submit" className="botao-primario"><Save size={17} /> {livro ? 'Salvar alterações' : 'Salvar livro'}</button></div>
         </form>
       </section>
