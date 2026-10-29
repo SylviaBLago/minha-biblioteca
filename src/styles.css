@@ -788,3 +788,12 @@ button:focus-visible {
 
 /* Ajuste fino: elevar discretamente os botões sem deslocar a barra. */
 .ficha-leitura-acoes { transform: translateY(-10px); }
+
+/* Ações próximas ao indicador de status no topo direito. */
+.ficha-leitura { position: relative; padding-right: 158px; min-height: 142px; }
+.ficha-leitura-rodape { display: block; margin-top: 13px; }
+.ficha-leitura-acoes { position: absolute; top: 49px; right: 15px; width: 128px; min-width: 0; transform: none; }
+@media (max-width: 520px) {
+  .ficha-leitura { padding-right: 132px; }
+  .ficha-leitura-acoes { right: 12px; width: 112px; min-width: 0; }
+}
