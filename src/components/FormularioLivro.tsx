@@ -31,6 +31,7 @@ function dadosIniciais(livro?: Livro | null): DadosLivro {
 
 export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
   const [dados, setDados] = useState<DadosLivro>(() => dadosIniciais(livro));
+  const [paginaTexto, setPaginaTexto] = useState(() => String(dadosIniciais(livro).paginaAtual ?? 0));
   const variasLeituras = (livro?.historico?.length ?? 0) > 1;
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
       window.alert('A data de conclusão não pode ser anterior à data de início.');
       return;
     }
-    aoSalvar({ ...dados, desejo: (dados.formatos ?? []).length === 0 && dados.desejo, titulo: dados.titulo.trim(), autor: dados.autor.trim(), genero: dados.genero.trim(), capa: dados.capa.trim() });
+    aoSalvar({ ...dados, paginaAtual: Number(paginaTexto || 0), desejo: (dados.formatos ?? []).length === 0 && dados.desejo, titulo: dados.titulo.trim(), autor: dados.autor.trim(), genero: dados.genero.trim(), capa: dados.capa.trim() });
   }
 
   return (
@@ -92,7 +93,7 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
               <div className="formulario-grade">
                 <div className="campo-livro"><label htmlFor="leitura-inicio">Data de início</label><input id="leitura-inicio" type="date" value={dados.dataInicio ?? ''} onChange={e => atualizar('dataInicio', e.target.value || null)} /></div>
                 {dados.status === 'concluido' && <div className="campo-livro"><label htmlFor="leitura-fim">Data de conclusão</label><input id="leitura-fim" type="date" value={dados.dataFim ?? ''} onChange={e => atualizar('dataFim', e.target.value || null)} /></div>}
-                {dados.status === 'lendo' && <div className="campo-livro"><label htmlFor="leitura-pagina">Página atual</label><input id="leitura-pagina" type="number" min="0" max={dados.paginas ?? undefined} value={dados.paginaAtual ?? 0} onChange={e => atualizar('paginaAtual', e.target.value === '' ? 0 : Number(e.target.value))} /></div>}
+                {dados.status === 'lendo' && <div className="campo-livro"><label htmlFor="leitura-pagina">Página atual</label><input id="leitura-pagina" type="number" min="0" max={dados.paginas ?? undefined} value={paginaTexto} onChange={e => setPaginaTexto(e.target.value)} /></div>}
               </div>
               <small>Preencha as datas conforme sua leitura. Nenhuma data é definida automaticamente.</small>
             </fieldset>
