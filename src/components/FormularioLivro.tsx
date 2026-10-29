@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Search, LoaderCircle } from 'lucide-react';
+import { buscarLivrosInternet, type LivroEncontrado } from '../services/buscaLivros';
 import type { DadosLivro, Livro, FormatoLivro, StatusLivro } from '../types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from '../types/livro';
 
@@ -32,6 +33,11 @@ function dadosIniciais(livro?: Livro | null): DadosLivro {
 export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
   const [dados, setDados] = useState<DadosLivro>(() => dadosIniciais(livro));
   const [paginaTexto, setPaginaTexto] = useState(() => String(dadosIniciais(livro).paginaAtual ?? 0));
+  const [termoCatalogo, setTermoCatalogo] = useState('');
+  const [resultados, setResultados] = useState<LivroEncontrado[]>([]);
+  const [consultando, setConsultando] = useState(false);
+  const [erroConsulta, setErroConsulta] = useState('');
+  const [mostrarResultados, setMostrarResultados] = useState(false);
   const variasLeituras = (livro?.historico?.length ?? 0) > 1;
 
   useEffect(() => {
@@ -41,6 +47,47 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
     window.addEventListener('keydown', aoTeclar);
     return () => window.removeEventListener('keydown', aoTeclar);
   }, [aoFechar]);
+
+  useEffect(() => {
+    const termo = termoCatalogo.trim();
+    if (termo.length < 3) {
+      setResultados([]);
+      setConsultando(false);
+      setMostrarResultados(false);
+      setErroConsulta('');
+      return;
+    }
+    const controle = new AbortController();
+    const tempo = window.setTimeout(async () => {
+      setConsultando(true);
+      setErroConsulta('');
+      try {
+        const encontrados = await buscarLivrosInternet(termo, controle.signal);
+        if (!controle.signal.aborted) {
+          setResultados(encontrados);
+          setMostrarResultados(true);
+        }
+      } catch (erro) {
+        if (!controle.signal.aborted) setErroConsulta(erro instanceof Error ? erro.message : 'Erro ao buscar livros.');
+      } finally {
+        if (!controle.signal.aborted) setConsultando(false);
+      }
+    }, 450);
+    return () => { window.clearTimeout(tempo); controle.abort(); };
+  }, [termoCatalogo]);
+
+  function selecionarResultado(resultado: LivroEncontrado) {
+    setDados(atual => ({
+      ...atual, titulo: resultado.titulo,
+      autor: resultado.autor || atual.autor,
+      genero: resultado.genero || atual.genero,
+      paginas: resultado.paginas ?? atual.paginas,
+      capa: resultado.capa || atual.capa,
+    }));
+    setMostrarResultados(false);
+    setTermoCatalogo('');
+    setResultados([]);
+  }
 
   function atualizar<K extends keyof DadosLivro>(campo: K, valor: DadosLivro[K]) {
     setDados((atual) => ({ ...atual, [campo]: valor }));
@@ -64,6 +111,23 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
           <button type="button" className="botao-icone" onClick={aoFechar} aria-label="Fechar cadastro"><X size={21} /></button>
         </header>
         <form className="formulario-livro" onSubmit={enviar}>
+          {!livro && <section className="busca-catalogo" aria-label="Buscar livro na internet">
+            <div className="campo-livro">
+              <label htmlFor="busca-catalogo-entrada"><Search size={15} /> Buscar por título ou ISBN</label>
+              <input id="busca-catalogo-entrada" type="search" autoComplete="off" value={termoCatalogo}
+                onChange={e => setTermoCatalogo(e.target.value)} placeholder="Ex.: Matéria Escura ou 978..." />
+              <small>Selecione uma sugestão para preencher os dados. Você poderá revisar antes de salvar.</small>
+            </div>
+            {consultando && <p className="busca-catalogo-estado" role="status"><LoaderCircle size={15} /> Buscando livros...</p>}
+            {erroConsulta && <p className="busca-catalogo-estado" role="alert">{erroConsulta} O cadastro manual continua disponível.</p>}
+            {mostrarResultados && !consultando && !erroConsulta && <div className="busca-catalogo-resultados" aria-label="Sugestões de livros">
+              {resultados.length === 0 ? <p className="busca-catalogo-estado">Nenhum resultado encontrado. Preencha os dados manualmente.</p>
+                : resultados.slice(0, 5).map(item => <button key={item.id} type="button" className="busca-catalogo-item" onClick={() => selecionarResultado(item)}>
+                    {item.capa ? <img src={item.capa} alt="" loading="lazy" /> : <span className="busca-catalogo-sem-capa">📚</span>}
+                    <span><strong>{item.titulo}</strong><small>{item.autor || 'Autor não informado'}{item.editora ? ' · ' + item.editora : ''}{item.ano ? ' · ' + item.ano.slice(0,4) : ''}{item.isbn ? ' · ISBN ' + item.isbn : ''}</small></span>
+                  </button>)}
+            </div>}
+          </section>}
           <div className="campo-livro"><label htmlFor="livro-titulo">Título *</label><input id="livro-titulo" required autoFocus maxLength={200} value={dados.titulo} onChange={(e) => atualizar('titulo', e.target.value)} placeholder="Ex.: Matéria Escura" /></div>
           <div className="campo-livro"><label htmlFor="livro-autor">Autor(a) *</label><input id="livro-autor" required maxLength={160} value={dados.autor} onChange={(e) => atualizar('autor', e.target.value)} placeholder="Ex.: Blake Crouch" /></div>
           <div className="formulario-grade">
