@@ -8,7 +8,7 @@ import FormularioLeitura, { type DadosLeitura } from './components/FormularioLei
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
@@ -28,7 +28,9 @@ export default function App() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
   const [detalhes, setDetalhes] = useState<Livro | null>(null);
-  const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
+  const [progresso, setProgresso] = useState<{ livro: Livro; leitura: HistoricoLeitura } | null>(null);
+  const [paginaProgresso, setPaginaProgresso] = useState('');
+  const [leituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
   const [pendente, setPendente] = useState<DadosLivro | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -189,6 +191,34 @@ export default function App() {
     }
   }
 
+  async function salvarProgresso() {
+    if (!progresso || salvandoRef.current) return;
+    const pagina = Number(paginaProgresso);
+    if (paginaProgresso.trim() === '' || !Number.isSafeInteger(pagina) || pagina < progresso.leitura.paginaAtual || (progresso.livro.paginas !== null && pagina > progresso.livro.paginas)) {
+      window.alert('Informe uma página válida, entre a página atual e o total do livro.');
+      return;
+    }
+    if (pagina === progresso.leitura.paginaAtual) { setProgresso(null); return; }
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        const atualizados = livros.map(l => l.id === progresso.livro.id ? {
+          ...l,
+          paginaAtual: pagina,
+          historico: (l.historico ?? []).map(v => v.id === progresso.leitura.id ? { ...v, paginaAtual: pagina } : v),
+        } : l);
+        if (!persistirLocal(atualizados)) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await atualizarProgressoSupabase(progresso.livro.id, progresso.leitura.id, usuarioId, pagina);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      setProgresso(null);
+    } catch (erro) {
+      setErroArmazenamento('Não foi possível atualizar o progresso: ' + (erro instanceof Error ? erro.message : String(erro)));
+    } finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
   function excluirLivro(livro: Livro) {
     if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
@@ -319,6 +349,7 @@ export default function App() {
                       <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
                       <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
                       {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
+                      {leitura.status === 'lendo' && <button type="button" className="botao-primario" onClick={() => { setProgresso({ livro: detalhes, leitura }); setPaginaProgresso(String(leitura.paginaAtual)); setDetalhes(null); }}>Atualizar progresso</button>}
                       <button type="button" className="botao-secundario" aria-label={`Editar ${indice === realizadas.length - 1 ? 'primeira leitura' : 'leitura ' + (realizadas.length - indice)} de ${detalhes.titulo}`} onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar esta leitura</button>
                     </div>
                   ))}
@@ -345,6 +376,13 @@ export default function App() {
         </div>
       )}
       {aviso.length > 0 && pendente && <AvisoDuplicidade correspondencias={aviso} livros={livros} aoVoltar={() => setAviso([])} aoContinuar={() => { const dados = pendente; setAviso([]); setPendente(null); void salvarCadastro(dados, true); }} aoEditar={(livro) => { setAviso([]); setPendente(null); setEditando(livro); setModalAberto(true); }} />}
+      {progresso && <div className="modal-fundo"><section className="modal-livro" role="dialog" aria-modal="true" aria-labelledby="titulo-progresso">
+        <header className="modal-cabecalho"><div><span className="subtitulo">ACOMPANHAMENTO DE LEITURA</span><h2 id="titulo-progresso">Atualizar progresso</h2><p>{progresso.livro.titulo}</p></div><button type="button" className="botao-icone" disabled={salvando} onClick={() => setProgresso(null)}>✕</button></header>
+        <form className="formulario-livro" onSubmit={e => { e.preventDefault(); void salvarProgresso(); }}>
+          <p>Você está na página {progresso.leitura.paginaAtual}{progresso.livro.paginas !== null ? ` de ${progresso.livro.paginas}` : ''}.</p>
+          <div className="campo-livro"><label htmlFor="pagina-progresso">Nova página atual</label><input id="pagina-progresso" type="number" min={progresso.leitura.paginaAtual} max={progresso.livro.paginas ?? undefined} value={paginaProgresso} onChange={e => setPaginaProgresso(e.target.value)} required /></div>
+          <div className="modal-acoes"><button type="button" className="botao-secundario" disabled={salvando} onClick={() => setProgresso(null)}>Cancelar</button><button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar progresso'}</button></div>
+        </form></section></div>}
       {leituraEmEdicao && <FormularioLeitura titulo={leituraEmEdicao.livro.titulo} paginas={leituraEmEdicao.livro.paginas} leitura={leituraEmEdicao.leitura} salvando={salvando} aoSalvar={salvarLeitura} aoFechar={() => { if (!salvando) setLeituraEmEdicao(null); }}/>}
       {modalAberto && <FormularioLivro key={editando?.id ?? 'novo'} livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { if (!salvando) { setModalAberto(false); setEditando(null); } }} />}
     </div>
