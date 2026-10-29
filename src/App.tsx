@@ -8,7 +8,7 @@ import FormularioLeitura, { type DadosLeitura } from './components/FormularioLei
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
@@ -34,6 +34,7 @@ export default function App() {
   const [diarioPagina, setDiarioPagina] = useState('');
   const [diarioTexto, setDiarioTexto] = useState('');
   const [diarioSpoiler, setDiarioSpoiler] = useState(false);
+  const [anotacaoEditando, setAnotacaoEditando] = useState<{ id: string; leituraId: string; texto: string; spoiler: boolean } | null>(null);
   const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
   const [pendente, setPendente] = useState<DadosLivro | null>(null);
@@ -252,6 +253,30 @@ export default function App() {
     finally { salvandoRef.current = false; setSalvando(false); }
   }
 
+  async function salvarEdicaoAnotacao() {
+    if (!anotacaoEditando || salvandoRef.current || !diarioSelecionado) return;
+    if (!anotacaoEditando.texto.trim()) { window.alert('A anotação não pode ficar vazia.'); return; }
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        if (!persistirLocal(livros.map(l => l.id !== diarioSelecionado.livroId ? l : {
+          ...l, historico: (l.historico ?? []).map(leitura => leitura.id !== anotacaoEditando.leituraId ? leitura : {
+            ...leitura, atualizacoes: (leitura.atualizacoes ?? []).map(reg => reg.id === anotacaoEditando.id ? {
+              ...reg, texto: anotacaoEditando.texto.trim(), contemSpoiler: anotacaoEditando.spoiler,
+            } : reg),
+          }),
+        }))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await editarAnotacaoSupabase(usuarioId, anotacaoEditando.leituraId, anotacaoEditando.id, anotacaoEditando.texto, anotacaoEditando.spoiler);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      setAnotacaoEditando(null);
+    } catch (erro) {
+      setErroArmazenamento('Não foi possível editar a anotação: ' + (erro instanceof Error ? erro.message : String(erro)));
+    } finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
   function excluirLivro(livro: Livro) {
     if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
@@ -331,7 +356,15 @@ export default function App() {
             <h4>Minha trajetória</h4>
             {(leitura.atualizacoes ?? []).length ? <div className="diario-entradas">{leitura.atualizacoes!.map(registro => <article key={registro.id} className="diario-entrada">
               <div className="diario-entrada-cabecalho"><strong>Página {registro.pagina}</strong><span>{registro.criadoEm && !Number.isNaN(Date.parse(registro.criadoEm)) ? new Date(registro.criadoEm).toLocaleString('pt-BR') : 'Data não informada'}</span></div>
-              {registro.contemSpoiler ? <details><summary>Mostrar anotação com spoiler</summary><p>{registro.texto}</p></details> : <p>{registro.texto}</p>}
+              {anotacaoEditando?.id === registro.id ? <form className="diario-edicao" onSubmit={e => { e.preventDefault(); void salvarEdicaoAnotacao(); }}>
+                <label htmlFor="editar-anotacao">Editar anotação</label>
+                <textarea id="editar-anotacao" rows={4} maxLength={10000} value={anotacaoEditando.texto} onChange={e => setAnotacaoEditando(v => v ? { ...v, texto: e.target.value } : v)} />
+                <label className="diario-checkbox"><input type="checkbox" checked={anotacaoEditando.spoiler} onChange={e => setAnotacaoEditando(v => v ? { ...v, spoiler: e.target.checked } : v)} /> Contém spoilers</label>
+                <div className="diario-edicao-acoes"><button type="button" className="botao-secundario" disabled={salvando} onClick={() => setAnotacaoEditando(null)}>Cancelar</button><button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</button></div>
+              </form> : <>
+                {registro.contemSpoiler ? <details><summary>Mostrar anotação com spoiler</summary><p>{registro.texto}</p></details> : <p>{registro.texto}</p>}
+                <button type="button" className="diario-editar-registro" onClick={() => setAnotacaoEditando({ id: registro.id, leituraId: leitura.id, texto: registro.texto ?? '', spoiler: registro.contemSpoiler ?? false })}>Editar anotação</button>
+              </>}
             </article>)}</div> : <p>Esta leitura ainda não tem registros no diário.</p>}
           </section>;
         })()}
