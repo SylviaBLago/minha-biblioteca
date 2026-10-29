@@ -24,12 +24,13 @@ async function todasAsLinhas(tabela: string, usuarioId: string): Promise<Linha[]
 
 export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> {
   // Promise.all falha se qualquer tabela falhar: não exibe uma estante incompleta como correta.
-  const [livros, exemplares, leituras, avaliacoes, desejos] = await Promise.all([
+  const [livros, exemplares, leituras, avaliacoes, desejos, diario] = await Promise.all([
     todasAsLinhas('livros', usuarioId),
     todasAsLinhas('exemplares', usuarioId),
     todasAsLinhas('leituras', usuarioId),
     todasAsLinhas('avaliacoes', usuarioId),
     todasAsLinhas('lista_desejos', usuarioId),
+    todasAsLinhas('diario_leitura', usuarioId),
   ]);
   const porCriacao = (a: Linha, b: Linha) => String(b.criado_em ?? '').localeCompare(String(a.criado_em ?? ''));
   const formatosPorLivro = new Map<string, FormatoLivro[]>();
@@ -50,6 +51,13 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
     const id = String(l.livro_id);
     if (!leituraPorLivro.has(id)) leituraPorLivro.set(id, l);
   }
+  const progressoPorLeitura = new Map<string, Linha[]>();
+  for (const registro of diario) {
+    if (registro.texto !== 'Atualização de progresso' || registro.pagina == null) continue;
+    const id = String(registro.leitura_id);
+    progressoPorLeitura.set(id, [...(progressoPorLeitura.get(id) ?? []), registro]);
+  }
+  for (const registros of progressoPorLeitura.values()) registros.sort(porCriacao);
   const avaliacaoPorLeitura = new Map<string, Linha>();
   for (const a of [...avaliacoes].sort(porCriacao)) {
     const id = String(a.leitura_id);
@@ -92,6 +100,7 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
           nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
           favorito: avaliacao?.favorito === true,
           resenha: String(avaliacao?.resenha ?? ''),
+          atualizacoes: (progressoPorLeitura.get(String(registro.id)) ?? []).map(p => ({ id: String(p.id), pagina: Number(p.pagina), criadoEm: String(p.criado_em ?? '') })),
           criadoEm: String(registro.criado_em ?? ''),
         };
       }),
