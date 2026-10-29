@@ -1,0 +1,382 @@
+import type { DadosLeitura } from '../components/FormularioLeitura';
+import { supabase } from './supabase';
+import type { DadosLivro, Livro, FormatoLivro, StatusLivro } from '../types/livro';
+
+export const PREFIXO_CITACAO = 'MB_CITACAO_V1:';
+export function interpretarCitacao(texto: string): { trecho: string; comentario: string } | null {
+  if (!texto.startsWith(PREFIXO_CITACAO)) return null;
+  try {
+    const valor: unknown = JSON.parse(texto.slice(PREFIXO_CITACAO.length));
+    if (valor && typeof valor === 'object' && 'trecho' in valor && typeof valor.trecho === 'string' && 'comentario' in valor && typeof valor.comentario === 'string')
+      return { trecho: valor.trecho, comentario: valor.comentario };
+  } catch { /* Registro legado inválido não deve impedir a leitura. */ }
+  return null;
+}
+type Linha = Record<string, unknown>;
+const erroDe = (erro: unknown) => erro instanceof Error ? erro.message : String(erro);
+
+// Uma chamada por tabela torna os relacionamentos explícitos e evita joins ambíguos
+// quando há mais de uma chave estrangeira entre as mesmas tabelas.
+async function todasAsLinhas(tabela: string, usuarioId: string): Promise<Linha[]> {
+  const saida: Linha[] = [];
+  const pagina = 500;
+  for (let inicio = 0; ; inicio += pagina) {
+    const { data, error } = await supabase.from(tabela)
+      .select('*').eq('usuario_id', usuarioId)
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw new Error(`Erro ao consultar ${tabela}: ${error.message}`);
+    const lote = (data ?? []) as Linha[];
+    saida.push(...lote);
+    if (lote.length < pagina) break;
+  }
+  return saida;
+}
+
+export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> {
+  // Promise.all falha se qualquer tabela falhar: não exibe uma estante incompleta como correta.
+  const [livros, exemplares, leituras, avaliacoes, desejos, diario] = await Promise.all([
+    todasAsLinhas('livros', usuarioId),
+    todasAsLinhas('exemplares', usuarioId),
+    todasAsLinhas('leituras', usuarioId),
+    todasAsLinhas('avaliacoes', usuarioId),
+    todasAsLinhas('lista_desejos', usuarioId),
+    todasAsLinhas('diario_leitura', usuarioId),
+  ]);
+  const porCriacao = (a: Linha, b: Linha) => String(b.criado_em ?? '').localeCompare(String(a.criado_em ?? ''));
+  const formatosPorLivro = new Map<string, FormatoLivro[]>();
+  for (const e of [...exemplares].sort(porCriacao)) {
+    const id = String(e.livro_id);
+    const formatos = formatosPorLivro.get(id) ?? [];
+    const formato = e.formato === 'ebook' ? 'ebook' : 'fisico';
+    if (!formatos.includes(formato)) formatos.push(formato);
+    formatosPorLivro.set(id, formatos);
+  }
+  const historicoPorLivro = new Map<string, Linha[]>();
+  for (const leitura of [...leituras].sort(porCriacao)) {
+    const id = String(leitura.livro_id);
+    historicoPorLivro.set(id, [...(historicoPorLivro.get(id) ?? []), leitura]);
+  }
+  const leituraPorLivro = new Map<string, Linha>();
+  for (const l of [...leituras].sort(porCriacao)) {
+    const id = String(l.livro_id);
+    if (!leituraPorLivro.has(id)) leituraPorLivro.set(id, l);
+  }
+  const progressoPorLeitura = new Map<string, Linha[]>();
+  for (const registro of diario) {
+    if (registro.pagina == null) continue;
+    const id = String(registro.leitura_id);
+    progressoPorLeitura.set(id, [...(progressoPorLeitura.get(id) ?? []), registro]);
+  }
+  for (const registros of progressoPorLeitura.values()) registros.sort(porCriacao);
+  const avaliacaoPorLeitura = new Map<string, Linha>();
+  for (const a of [...avaliacoes].sort(porCriacao)) {
+    const id = String(a.leitura_id);
+    if (!avaliacaoPorLeitura.has(id)) avaliacaoPorLeitura.set(id, a);
+  }
+  const idsDesejados = new Set(desejos.map(d => String(d.livro_id)));
+  const statusPermitidos: StatusLivro[] = ['quero_ler', 'lendo', 'pausado', 'concluido', 'abandonado'];
+  return livros.map(l => {
+    const id = String(l.id);
+    const leitura = leituraPorLivro.get(id);
+    const avaliacao = leitura ? avaliacaoPorLeitura.get(String(leitura.id)) : undefined;
+    const status = String(leitura?.status ?? 'quero_ler');
+    return {
+      id,
+      titulo: String(l.titulo ?? ''),
+      autor: String(l.autor ?? ''),
+      genero: String(l.genero ?? ''),
+      paginas: l.paginas == null ? null : Number(l.paginas),
+      capa: String(l.capa_url ?? ''),
+      formato: formatosPorLivro.get(id)?.[0] ?? 'fisico',
+      formatos: formatosPorLivro.get(id) ?? [],
+      possui: (formatosPorLivro.get(id)?.length ?? 0) > 0,
+      status: statusPermitidos.includes(status as StatusLivro) ? status as StatusLivro : 'quero_ler',
+      paginaAtual: Number(leitura?.pagina_atual ?? 0),
+      dataInicio: leitura?.data_inicio == null ? null : String(leitura.data_inicio),
+      dataFim: leitura?.data_fim == null ? null : String(leitura.data_fim),
+      desejo: idsDesejados.has(id),
+      favorito: avaliacao?.favorito === true,
+      nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
+      criadoEm: String(l.criado_em ?? ''),
+      historico: (historicoPorLivro.get(id) ?? []).map((registro) => {
+        const avaliacao = avaliacaoPorLeitura.get(String(registro.id));
+        const estado = String(registro.status ?? 'quero_ler') as StatusLivro;
+        return {
+          id: String(registro.id),
+          status: statusPermitidos.includes(estado) ? estado : 'quero_ler',
+          paginaAtual: Number(registro.pagina_atual ?? 0),
+          dataInicio: registro.data_inicio == null ? null : String(registro.data_inicio),
+          dataFim: registro.data_fim == null ? null : String(registro.data_fim),
+          nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
+          favorito: avaliacao?.favorito === true,
+          resenha: String(avaliacao?.resenha ?? ''),
+          atualizacoes: (progressoPorLeitura.get(String(registro.id)) ?? []).map(p => ({ id: String(p.id), pagina: Number(p.pagina), criadoEm: String(p.criado_em ?? ''), texto: String(p.texto ?? ''), contemSpoiler: p.contem_spoiler === true })),
+          criadoEm: String(registro.criado_em ?? ''),
+        };
+      }),
+    };
+  }).sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+}
+
+export class CadastroParcialError extends Error {
+  constructor(public readonly livroId: string, etapa: string, causa: unknown) {
+    super(`O livro foi criado no Supabase (ID ${livroId}), mas não foi possível concluir ${etapa}: ${erroDe(causa)}. Atualize a estante antes de tentar novamente para evitar duplicatas.`);
+    this.name = 'CadastroParcialError';
+  }
+}
+
+export async function cadastrarLivroSupabase(dados: DadosLivro, usuarioId: string): Promise<void> {
+  // ID gerado no cliente possibilita identificar cadastros parciais sem apagar dados.
+  const livroId = crypto.randomUUID();
+  const { error: erroLivro } = await supabase.from('livros').insert({
+    id: livroId, usuario_id: usuarioId,
+    titulo: dados.titulo, autor: dados.autor || null,
+    genero: dados.genero || null, paginas: dados.paginas,
+    capa_url: dados.capa || null,
+  });
+  if (erroLivro) throw new Error(`Cadastro não realizado: ${erroLivro.message}`);
+
+  const inserir = async (tabela: string, valores: Record<string, unknown>, etapa: string) => {
+    const { error } = await supabase.from(tabela).insert(valores);
+    if (error) throw new CadastroParcialError(livroId, etapa, error.message);
+  };
+  const formatos = dados.formatos ?? (dados.possui === false ? [] : [dados.formato]);
+  for (const formato of [...new Set(formatos)]) {
+    await inserir('exemplares', { usuario_id: usuarioId, livro_id: livroId, formato }, 'o formato do exemplar');
+  }
+  const leituraId = crypto.randomUUID();
+  await inserir('leituras', { id: leituraId, usuario_id: usuarioId, livro_id: livroId, status: dados.status, pagina_atual: dados.paginaAtual ?? 0, data_inicio: dados.dataInicio ?? null, data_fim: dados.status === 'concluido' ? dados.dataFim ?? null : null }, 'o status de leitura');
+  if (dados.nota !== null || dados.favorito) {
+    await inserir('avaliacoes', { usuario_id: usuarioId, leitura_id: leituraId, nota: dados.nota, favorito: dados.favorito }, 'a avaliação');
+  }
+  if (dados.desejo && formatos.length === 0) {
+    await inserir('lista_desejos', { usuario_id: usuarioId, livro_id: livroId }, 'a lista de desejos');
+  }
+}
+
+export class EdicaoParcialError extends Error {
+  constructor(etapa: string, causa: unknown) {
+    super('Uma parte das alterações pode ter sido salva, mas houve erro em ' + etapa + ': ' + erroDe(causa) + '. Recarregue a estante antes de tentar novamente.');
+    this.name = 'EdicaoParcialError';
+  }
+}
+
+export async function editarLivroSupabase(id: string, usuarioId: string, dados: DadosLivro): Promise<void> {
+  const obter = async (tabela: string, chave: string, valor: string) => {
+    const { data, error } = await supabase.from(tabela).select('*')
+      .eq('usuario_id', usuarioId).eq(chave, valor).limit(100);
+    if (error) throw new Error('Erro ao consultar ' + tabela + ': ' + error.message);
+    return (data ?? []) as Linha[];
+  };
+  const [livros, exemplares, leituras, desejos] = await Promise.all([
+    obter('livros', 'id', id), obter('exemplares', 'livro_id', id),
+    obter('leituras', 'livro_id', id), obter('lista_desejos', 'livro_id', id),
+  ]);
+  if (livros.length !== 1) throw new Error('Livro não encontrado na sua conta.');
+  const leitura = leituras.length === 1 ? leituras[0] : null;
+  const atuais: FormatoLivro[] = [...new Set(exemplares.map(e => e.formato).filter((f): f is FormatoLivro => f === 'fisico' || f === 'ebook'))];
+  const solicitados = [...new Set(dados.formatos ?? (dados.possui === false ? [] : [dados.formato]))];
+  if (exemplares.length >= 100)
+    throw new Error('Quantidade elevada de exemplares: confira os dados antes de editar.');
+  const remover = exemplares.filter(e => !solicitados.includes(e.formato as FormatoLivro));
+  const adicionar = solicitados.filter(formato => !atuais.includes(formato));
+  const desejaAdquirir = solicitados.length === 0 && dados.desejo;
+  const avaliacoes = leitura ? await obter('avaliacoes', 'leitura_id', String(leitura.id)) : [];
+  if (avaliacoes.length > 1 || desejos.length > 1)
+    throw new Error('Foram encontrados registros relacionados ambíguos. Nenhuma alteração foi iniciada.');
+  const alterar = async (tabela: string, registroId: string, valores: Record<string, unknown>, etapa: string) => {
+    const { error } = await supabase.from(tabela).update(valores)
+      .eq('usuario_id', usuarioId).eq('id', registroId);
+    if (error) throw new EdicaoParcialError(etapa, error);
+  };
+  await alterar('livros', id, {
+    titulo: dados.titulo, autor: dados.autor || null, genero: dados.genero || null,
+    paginas: dados.paginas, capa_url: dados.capa || null,
+  }, 'dados bibliográficos');
+  for (const formato of adicionar) {
+    const { error } = await supabase.from('exemplares').insert({
+      usuario_id: usuarioId, livro_id: id, formato,
+    });
+    if (error) throw new EdicaoParcialError('inclusão de exemplar', error);
+  }
+  if (leitura) await alterar('leituras', String(leitura.id), { status: dados.status, pagina_atual: dados.paginaAtual ?? 0, data_inicio: dados.dataInicio ?? null, data_fim: dados.status === 'concluido' ? dados.dataFim ?? null : null }, 'informações da leitura');
+  if (avaliacoes.length) {
+    await alterar('avaliacoes', String(avaliacoes[0].id),
+      { nota: dados.nota, favorito: dados.favorito }, 'avaliação');
+  } else if (leitura && (dados.nota !== null || dados.favorito)) {
+    const { error } = await supabase.from('avaliacoes').insert({
+      usuario_id: usuarioId, leitura_id: leitura.id, nota: dados.nota, favorito: dados.favorito,
+    });
+    if (error) throw new EdicaoParcialError('avaliação', error);
+  }
+  if (desejaAdquirir && !desejos.length) {
+    const { error } = await supabase.from('lista_desejos').insert({ usuario_id: usuarioId, livro_id: id });
+    if (error) throw new EdicaoParcialError('lista de desejos', error);
+  } else if (!desejaAdquirir && desejos.length) {
+    const { error } = await supabase.from('lista_desejos').delete()
+      .eq('usuario_id', usuarioId).eq('id', String(desejos[0].id));
+    if (error) throw new EdicaoParcialError('lista de desejos', error);
+  }
+  for (const exemplar of remover) {
+    const { error } = await supabase.from('exemplares').delete()
+      .eq('id', String(exemplar.id)).eq('livro_id', id).eq('usuario_id', usuarioId);
+    if (error) throw new EdicaoParcialError('retirada de exemplar', error);
+  }
+
+}
+
+export async function salvarLeituraSupabase(livroId: string, usuarioId: string, dados: DadosLeitura, leituraId?: string): Promise<void> {
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('id')
+    .eq('id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado na sua conta.');
+  const valores = {
+    status: dados.status, pagina_atual: dados.status === 'concluido' ? 0 : dados.paginaAtual,
+    data_inicio: dados.dataInicio, data_fim: dados.status === 'concluido' ? dados.dataFim : null,
+  };
+  let id = leituraId;
+  if (id) {
+    const { data: leitura, error } = await supabase.from('leituras').update(valores).eq('id', id)
+      .eq('livro_id', livroId).eq('usuario_id', usuarioId).select('id').maybeSingle();
+    if (error || !leitura) throw new Error('Não foi possível atualizar a leitura selecionada: ' + (error?.message ?? 'registro não encontrado'));
+  } else {
+    // Uma leitura ainda não iniciada pode ser aproveitada sem gerar histórico artificial.
+    const { data: antigas, error: erroConsulta } = await supabase.from('leituras')
+      .select('id,status,pagina_atual,data_inicio,data_fim').eq('livro_id', livroId).eq('usuario_id', usuarioId).limit(100);
+    if (erroConsulta) throw new Error(erroConsulta.message);
+    const disponiveis = (antigas ?? []).filter(l => l.status === 'quero_ler' && !l.data_inicio && !l.data_fim && Number(l.pagina_atual ?? 0) === 0);
+    if (antigas?.length === 1 && disponiveis.length === 1) {
+      id = disponiveis[0].id;
+      const { error } = await supabase.from('leituras').update(valores).eq('id', id)
+        .eq('livro_id', livroId).eq('usuario_id', usuarioId);
+      if (error) throw new Error(error.message);
+    } else {
+      id = crypto.randomUUID();
+      const { error } = await supabase.from('leituras').insert({ id, livro_id: livroId, usuario_id: usuarioId, ...valores });
+      if (error) throw new Error('Não foi possível criar a leitura: ' + error.message);
+    }
+  }
+  const { data: avaliacoes, error: erroAvaliacoes } = await supabase.from('avaliacoes').select('id')
+    .eq('leitura_id', id).eq('usuario_id', usuarioId).limit(2);
+  if (erroAvaliacoes) throw new EdicaoParcialError('consulta da avaliação', erroAvaliacoes);
+  if (avaliacoes?.length) {
+    const { error } = await supabase.from('avaliacoes').update({ nota: dados.nota, favorito: dados.favorito })
+      .eq('id', avaliacoes[0].id).eq('usuario_id', usuarioId);
+    if (error) throw new EdicaoParcialError('avaliação da leitura', error);
+  } else if (dados.nota !== null || dados.favorito) {
+    const { error } = await supabase.from('avaliacoes').insert({
+      usuario_id: usuarioId, leitura_id: id, nota: dados.nota, favorito: dados.favorito,
+    });
+    if (error) throw new EdicaoParcialError('avaliação da leitura', error);
+  }
+}
+
+export async function atualizarProgressoSupabase(livroId: string, leituraId: string, usuarioId: string, pagina: number): Promise<void> {
+  if (!Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Informe uma página válida.');
+  const { data: leitura, error: erroConsulta } = await supabase.from('leituras')
+    .select('id,pagina_atual,status').eq('id', leituraId).eq('livro_id', livroId)
+    .eq('usuario_id', usuarioId).maybeSingle();
+  if (erroConsulta || !leitura) throw new Error('Leitura não encontrada na sua conta.');
+  if (leitura.status !== 'lendo') throw new Error('O progresso só pode ser atualizado em leituras em andamento.');
+  if (pagina < Number(leitura.pagina_atual ?? 0)) throw new Error('O progresso não pode ser menor que a página atual.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas')
+    .eq('id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado.');
+  if (livro.paginas != null && pagina > Number(livro.paginas)) throw new Error('A página não pode ultrapassar o total do livro.');
+  const { data: atualizado, error } = await supabase.from('leituras').update({ pagina_atual: pagina })
+    .eq('id', leituraId).eq('livro_id', livroId).eq('usuario_id', usuarioId)
+    .eq('pagina_atual', leitura.pagina_atual ?? 0).select('id').maybeSingle();
+  if (error || !atualizado) throw new Error('O progresso mudou em outra sessão ou não pôde ser salvo. Recarregue e tente novamente.');
+  const { error: erroDiario } = await supabase.from('diario_leitura').insert({
+    usuario_id: usuarioId, leitura_id: leituraId, pagina,
+    texto: 'Atualização de progresso', contem_spoiler: false,
+  });
+  if (erroDiario) throw new EdicaoParcialError('registro do progresso no diário', erroDiario);
+}
+
+export async function registrarDiarioSupabase(usuarioId: string, livroId: string, leituraId: string, pagina: number, texto: string, contemSpoiler: boolean): Promise<void> {
+  if (!Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Página inválida.');
+  const { data: leitura, error } = await supabase.from('leituras').select('id,status,pagina_atual')
+    .eq('id', leituraId).eq('livro_id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (error || !leitura) throw new Error('Leitura não encontrada.');
+  if (leitura.status !== 'lendo') throw new Error('Somente leituras em andamento podem receber novo progresso.');
+  if (pagina < Number(leitura.pagina_atual ?? 0)) throw new Error('A página não pode retroceder.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas').eq('id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado.');
+  if (livro.paginas != null && pagina > Number(livro.paginas)) throw new Error('Página acima do total do livro.');
+  if (pagina !== Number(leitura.pagina_atual ?? 0)) {
+    const { data: atualizado, error: erroAtualizacao } = await supabase.from('leituras').update({ pagina_atual: pagina })
+      .eq('id', leituraId).eq('livro_id', livroId).eq('usuario_id', usuarioId)
+      .eq('pagina_atual', leitura.pagina_atual ?? 0).select('id').maybeSingle();
+    if (erroAtualizacao || !atualizado) throw new Error('Progresso alterado em outra sessão. Recarregue a página.');
+  }
+  const { error: erroRegistro } = await supabase.from('diario_leitura').insert({
+    usuario_id: usuarioId, leitura_id: leituraId, pagina, texto: texto.trim() || 'Atualização de progresso', contem_spoiler: contemSpoiler,
+  });
+  if (erroRegistro) throw new EdicaoParcialError('salvamento do diário', erroRegistro);
+}
+
+/** Edita apenas o texto e o marcador de spoiler, sem alterar o progresso registrado. */
+export async function editarAnotacaoSupabase(usuarioId: string, leituraId: string, registroId: string, texto: string, contemSpoiler: boolean): Promise<void> {
+  if (!texto.trim()) throw new Error('A anotação não pode ficar vazia.');
+  const { data, error } = await supabase.from('diario_leitura')
+    .update({ texto: texto.trim(), contem_spoiler: contemSpoiler })
+    .eq('usuario_id', usuarioId).eq('leitura_id', leituraId).eq('id', registroId)
+    .select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível editar a anotação selecionada: ' + (error?.message ?? 'registro não encontrado'));
+}
+
+/** Remove somente a entrada escolhida do diário, nunca a leitura ou seu progresso atual. */
+export async function excluirAnotacaoSupabase(usuarioId: string, leituraId: string, registroId: string): Promise<void> {
+  const { data, error } = await supabase.from('diario_leitura').delete()
+    .eq('usuario_id', usuarioId).eq('leitura_id', leituraId).eq('id', registroId)
+    .select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível excluir a anotação selecionada: ' + (error?.message ?? 'registro não encontrado'));
+}
+
+/** Citações têm representação própria em diario_leitura.texto, sem alterar o esquema. */
+export async function salvarCitacaoSupabase(usuarioId: string, livroId: string, leituraId: string, pagina: number, trecho: string, comentario: string): Promise<void> {
+  if (!trecho.trim()) throw new Error('Informe o trecho da citação.');
+  if (!Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Página inválida.');
+  const { data: leitura, error } = await supabase.from('leituras').select('id')
+    .eq('usuario_id', usuarioId).eq('livro_id', livroId).eq('id', leituraId).maybeSingle();
+  if (error || !leitura) throw new Error('Leitura não encontrada.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas')
+    .eq('usuario_id', usuarioId).eq('id', livroId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado.');
+  if (livro.paginas != null && pagina > Number(livro.paginas)) throw new Error('Página maior que o total do livro.');
+  const texto = PREFIXO_CITACAO + JSON.stringify({ trecho: trecho.trim(), comentario: comentario.trim() });
+  const { error: erroRegistro } = await supabase.from('diario_leitura').insert({
+    usuario_id: usuarioId, leitura_id: leituraId, pagina, texto, contem_spoiler: false,
+  });
+  if (erroRegistro) throw new Error('Não foi possível salvar a citação: ' + erroRegistro.message);
+}
+
+/** Atualiza somente uma citação identificada, vinculada à leitura do usuário. */
+export async function editarCitacaoSupabase(usuarioId: string, leituraId: string, registroId: string, pagina: number, trecho: string, comentario: string): Promise<void> {
+  if (!trecho.trim() || !Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Informe o trecho e uma página válida.');
+  const { data: registro, error: erroBusca } = await supabase.from('diario_leitura').select('texto')
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId).maybeSingle();
+  if (erroBusca || !registro || !interpretarCitacao(String(registro.texto ?? ''))) throw new Error('Citação não encontrada.');
+  const { data: leitura, error: erroLeitura } = await supabase.from('leituras').select('livro_id')
+    .eq('id', leituraId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLeitura || !leitura) throw new Error('Leitura não encontrada.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas')
+    .eq('id', leitura.livro_id).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro || (livro.paginas != null && pagina > Number(livro.paginas))) throw new Error('Página maior que o total do livro.');
+  const texto = PREFIXO_CITACAO + JSON.stringify({ trecho: trecho.trim(), comentario: comentario.trim() });
+  const { data, error } = await supabase.from('diario_leitura').update({ pagina, texto })
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId)
+    .eq('texto', registro.texto).select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível editar a citação: ' + (error?.message ?? 'registro alterado em outra sessão'));
+}
+
+/** Exclui exclusivamente uma entrada marcada como citação. */
+export async function excluirCitacaoSupabase(usuarioId: string, leituraId: string, registroId: string): Promise<void> {
+  const { data: registro, error: erroBusca } = await supabase.from('diario_leitura').select('texto')
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId).maybeSingle();
+  if (erroBusca || !registro || !interpretarCitacao(String(registro.texto ?? ''))) throw new Error('Citação não encontrada.');
+  const { data, error } = await supabase.from('diario_leitura').delete()
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId)
+    .eq('texto', registro.texto).select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível excluir a citação: ' + (error?.message ?? 'registro alterado em outra sessão'));
+}

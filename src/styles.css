@@ -647,3 +647,265 @@ button:focus-visible {
 .modal-acoes { display: flex; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid #e9dfd0; }
 @media (max-width: 760px) { .cabecalho-acoes { width: 100%; } .modal-livro { padding: 22px 18px; } .formulario-grade { grid-template-columns: 1fr; } }
 @media (max-width: 420px) { .cabecalho-acoes button { flex: 1; } .modal-acoes { flex-direction: column-reverse; } }
+
+/* Confirmação de possíveis livros repetidos */
+.aviso-duplicidade-fundo { z-index: 1200; }
+.aviso-duplicidade { width: min(100%, 650px); max-height: 90vh; overflow-y: auto; border-radius: 22px; background: #fffdf8; padding: 28px; box-shadow: 0 20px 70px rgba(0,0,0,.18); color: #3d342e; }
+.aviso-duplicidade h2 { font: 600 27px 'Playfair Display', serif; color: #354f3d; margin: 8px 0 0; }
+.aviso-duplicidade p { font-size: 13px; color: #64594f; line-height: 1.65; }
+.duplicatas-lista { display: grid; gap: 10px; margin: 20px 0; }
+.duplicata-item { display: flex; align-items: center; gap: 13px; background: #f7f3eb; border: 1px solid #e9dfd0; border-radius: 12px; padding: 13px; color: #738a70; }
+.duplicata-info { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.duplicata-info strong { font: 600 17px 'Playfair Display', serif; color: #354f3d; }
+.duplicata-info span, .duplicata-info small { font-size: 12px; color: #64594f; }
+.duplicata-detalhes { border-radius: 12px; padding: 16px; background: #e5e9da; margin-bottom: 16px; }
+.duplicata-detalhes h3 { font: 600 19px 'Playfair Display', serif; margin: 0 0 8px; color: #354f3d; }
+.duplicata-acoes { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; border-top: 1px solid #e9dfd0; padding-top: 18px; }
+@media(max-width: 560px) { .aviso-duplicidade { padding: 20px; } .duplicata-item { flex-wrap: wrap; } .duplicata-acoes button { flex: 1; } }
+
+
+/* Cartões — hierarquia editorial, metadados separados e avaliação destacada */
+.grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 22px; align-items: stretch; }
+.cartao-livro { display: flex; flex-direction: column; min-width: 0; border-radius: 20px; transition: transform .18s ease, box-shadow .18s ease; }
+.cartao-livro:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(53,79,61,.09); }
+.capa-livro { height: 238px; flex: none; }
+.cartao-livro-corpo { flex: 1; align-items: stretch; gap: 0; padding: 19px; }
+.cartao-livro-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 14px; }
+.cartao-livro-formato, .cartao-livro-desejo { display: inline-flex; align-items: center; border-radius: 999px; background: #e9efdf; color: #354f3d; padding: 6px 10px; font-size: 11px; font-weight: 700; }
+.cartao-livro-desejo { background: #f5e8e4; color: #895a50; }
+.cartao-livro-identidade { min-height: 96px; }
+.cartao-livro h4 { font-size: 20px; line-height: 1.28; margin: 0 0 8px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.cartao-livro-identidade p { font-size: 13px; line-height: 1.45; color: #766d63; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.cartao-livro-metadados { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 14px 0; border-top: 1px solid #eee7dc; }
+.cartao-status { padding: 6px 9px; font-size: 11px; font-weight: 700; border-radius: 7px; color: #536d51; background: #edf1e8; }
+.cartao-status--lendo { color: #365e77; background: #e8f1f6; }
+.cartao-status--concluido { color: #446c47; background: #e1eee1; }
+.cartao-status--pausado { color: #856c40; background: #f5eddf; }
+.cartao-status--abandonado { color: #885953; background: #f5e8e4; }
+.cartao-livro-genero { min-width: 0; max-width: 100%; font-size: 11px; color: #766d63; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cartao-livro-avaliacao { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border-top: 1px solid #eee7dc; padding: 13px 0; }
+.cartao-livro-nota { display: inline-flex; align-items: baseline; gap: 4px; font-size: 16px; color: #b98b2a; }
+.cartao-livro-nota strong { font-family: 'DM Sans', sans-serif; font-size: 17px; color: #354f3d; }
+.cartao-livro-nota span { font-size: 11px; color: #82766b; }
+.cartao-livro-favorito { background: #faeae5; color: #8f564d; padding: 6px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.cartao-livro-rodape { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid #eee7dc; }
+.cartao-livro-rodape .botao-icone { width: auto; min-height: 35px; padding: 0 11px; gap: 7px; font-size: 12px; font-weight: 700; }
+.cartao-livro-rodape .cartao-editar { margin-right: auto; }
+@media (max-width: 520px) { .grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 15px; } }
+
+
+/* Cartões compactos com controles sobre a capa */
+.grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 18px; }
+.cartao-livro-compacto { border-radius: 14px; }
+.capa-livro-compacta { position: relative; height: 230px; background: #e5e9da; isolation: isolate; }
+.capa-abrir { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border: 0; padding: 0; background: transparent; color: #738a70; cursor: pointer; }
+.capa-abrir img { width: 100%; height: 100%; object-fit: contain; }
+.capa-abrir:focus-visible, .capa-editar:focus-visible { outline: 3px solid #b98b2a; outline-offset: -3px; }
+.capa-editar { position: absolute; top: 9px; right: 9px; z-index: 2; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(53,79,61,.15); background: rgba(255,253,248,.96); color: #354f3d; box-shadow: 0 2px 9px rgba(0,0,0,.1); }
+.capa-editar:hover { background: #fff; }
+.capa-status { position: absolute; bottom: 10px; left: 8px; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 7px; padding: 6px 8px; font-size: 10px; font-weight: 700; background: rgba(255,253,248,.96); color: #354f3d; pointer-events: none; }
+.capa-status.cartao-status--lendo { color: #365e77; background: #e8f1f6; }
+.capa-status.cartao-status--concluido { color: #446c47; background: #e1eee1; }
+.capa-status.cartao-status--pausado { color: #856c40; background: #f5eddf; }
+.capa-status.cartao-status--abandonado { color: #885953; background: #f5e8e4; }
+.capa-avaliacao { position: absolute; bottom: 10px; right: 8px; display: flex; align-items: center; gap: 5px; border-radius: 8px; padding: 6px 8px; background: rgba(255,253,248,.96); color: #ab7b22; box-shadow: 0 1px 5px rgba(0,0,0,.08); pointer-events: none; }
+.capa-nota { font-size: 12px; font-weight: 800; white-space: nowrap; }
+.capa-coracao { color: #b45b60; flex: none; }
+.cartao-livro-corpo-compacto { padding: 12px 13px 15px; gap: 4px; min-height: 0; }
+.cartao-livro-corpo-compacto h4 { font-size: 16px; line-height: 1.3; margin: 0 0 5px; -webkit-line-clamp: 3; }
+.cartao-livro-corpo-compacto p { font-size: 12px; line-height: 1.4; color: #766d63; }
+.ficha-livro { max-width: 690px; }
+.ficha-conteudo { display: grid; grid-template-columns: minmax(125px,190px) minmax(0,1fr); gap: 25px; }
+.ficha-capa { display: flex; align-items: center; justify-content: center; min-height: 250px; max-height: 290px; border-radius: 12px; overflow: hidden; background: #e5e9da; color: #738a70; }
+.ficha-capa img { width: 100%; height: 100%; max-height: 290px; object-fit: contain; }
+.ficha-informacoes h3 { font: 600 25px/1.25 'Playfair Display',serif; color: #354f3d; margin: 0 0 5px; overflow-wrap: anywhere; }
+.ficha-autor { color: #766d63; font-size: 14px; margin: 0 0 19px; }
+.ficha-informacoes dl { display: grid; grid-template-columns: minmax(95px,auto) 1fr; gap: 12px; font-size: 13px; margin: 0; }
+.ficha-informacoes dt { color: #82766b; font-weight: 600; }
+.ficha-informacoes dd { color: #354f3d; margin: 0; overflow-wrap: anywhere; }
+.ficha-acoes { margin-top: 24px; }
+@media(max-width:520px) { .grade-livros { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; } .capa-livro-compacta { height: 205px; } .ficha-conteudo { grid-template-columns: 1fr; } .ficha-capa { min-height: 170px; max-height: 230px; } .ficha-capa img { max-height: 230px; } }
+
+/* Refinamento: cartões menores, mantendo etiquetas legíveis e a ficha completa */
+.grade-livros { grid-template-columns: repeat(auto-fill, minmax(min(100%, 164px), 190px)); gap: 16px; }
+.capa-livro-compacta { height: 195px; }
+.cartao-livro-corpo-compacto { padding: 11px 12px 13px; }
+.cartao-livro-corpo-compacto h4 { font-size: 15px; line-height: 1.28; }
+.cartao-livro-corpo-compacto p { font-size: 12px; }
+.capa-editar { width: 32px; height: 32px; }
+.capa-status { bottom: 8px; left: 7px; padding: 5px 7px; max-width: 52%; }
+.capa-avaliacao { bottom: 8px; right: 7px; padding: 5px 7px; }
+.ficha-informacoes dl { gap: 11px 14px; }
+@media(max-width:520px) {
+  .grade-livros { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .capa-livro-compacta { height: clamp(170px,52vw,205px); }
+  .cartao-livro-corpo-compacto { padding: 10px; }
+}
+
+
+/* Seleção de exemplares: sobrescreve o estilo genérico dos inputs do formulário */
+.campo-livro .formulario-posse { align-items: flex-start; gap: 10px; padding: 7px 0 0; }
+.campo-livro .formulario-posse label { display: flex; align-items: center; justify-content: flex-start; gap: 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.campo-livro .formulario-posse input[type="checkbox"] { box-sizing: border-box; width: 17px; height: 17px; min-height: 0; margin: 0; padding: 0; flex: 0 0 17px; accent-color: #354f3d; cursor: pointer; }
+.campo-livro .formulario-posse input[type="checkbox"]:disabled { cursor: not-allowed; }
+.campo-livro .formulario-posse small { display: block; margin-top: 5px; max-width: 340px; }
+
+.observacao-exemplares { margin: -6px 0 0; font-size: 12px; color: #82766b; line-height: 1.5; }
+
+/* Histórico na ficha: apresentação somente leitura */
+.ficha-historico { border-top: 1px solid #e9dfd0; margin-top: 23px; padding-top: 20px; }
+.ficha-historico h3 { font: 600 21px 'Playfair Display', serif; color: #354f3d; margin: 0 0 15px; }
+.ficha-leitura { border: 1px solid #e9dfd0; background: #f7f3eb; border-radius: 12px; padding: 13px 15px; margin-bottom: 9px; }
+.ficha-leitura-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: #354f3d; }
+.ficha-leitura-topo span { background: #e5e9da; border-radius: 6px; padding: 5px 8px; font-size: 11px; }
+.ficha-leitura p, .ficha-sem-leituras, .ficha-ajuda { font-size: 12px; color: #766d63; line-height: 1.5; margin: 9px 0 0; }
+.ficha-leitura .ficha-resenha { border-top: 1px solid #e9dfd0; padding-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.secao-informacoes-leitura { border: 1px solid #e9dfd0; border-radius: 13px; margin: 2px 0; padding: 16px; min-width: 0; background: #f8f6f1; }
+.secao-informacoes-leitura legend { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 600; color: #354f3d; padding: 0 8px; }
+.secao-informacoes-leitura small { display: block; font-size: 11px; line-height: 1.5; color: #82766b; margin-top: 10px; }
+
+/* Progresso discreto e ações compactas na ficha de leitura */
+.ficha-leitura-rodape { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 16px; align-items: end; margin-top: 13px; }
+.progresso-leitura { min-width: 0; padding-bottom: 3px; }
+.progresso-legenda, .cartao-progresso-linha { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: #82766b; margin-bottom: 7px; }
+.progresso-legenda span:last-child, .cartao-progresso-linha span:last-child { color: #49634b; font-weight: 600; }
+.progresso-trilho { height: 5px; width: 100%; border-radius: 999px; overflow: hidden; background: #e1e5d9; }
+.progresso-preenchimento { height: 100%; border-radius: inherit; background: #819b7f; transition: width .2s ease; }
+.progresso-sem-total { color: #82766b; font-size: 11px; }
+.ficha-leitura-acoes { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 128px; }
+.ficha-leitura-acoes .ficha-acao-suave { border: 1px solid #dcd8ca; background: rgba(255,255,255,.52); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.25; color: #48634e; cursor: pointer; }
+.ficha-leitura-acoes .ficha-acao-suave:hover { background: #e9eee5; border-color: #b6c7b6; }
+.ficha-leitura-acoes .ficha-acao-suave:focus-visible { outline: 2px solid #49634b; outline-offset: 2px; }
+.cartao-progresso { margin-top: 11px; }
+.cartao-progresso-linha { font-size: 10px; margin-bottom: 5px; }
+.cartao-progresso .progresso-trilho { height: 4px; }
+@media (max-width: 520px) {
+ .ficha-leitura-rodape { grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
+ .ficha-leitura-acoes { min-width: 112px; }
+ .ficha-leitura-acoes .ficha-acao-suave { font-size: 10px; padding: 7px 6px; }
+}
+
+/* Composição equilibrada: título e status no topo, barra ampla e ações no rodapé. */
+.ficha-leitura { position: static; padding: 13px 15px; min-height: 0; }
+.ficha-leitura-rodape {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  gap: 14px;
+  align-items: center;
+  margin-top: 11px;
+}
+.progresso-leitura { padding-bottom: 0; align-self: end; padding-bottom: 3px; }
+.ficha-leitura-acoes {
+  position: static;
+  width: auto;
+  min-width: 0;
+  transform: none;
+  gap: 5px;
+  align-self: center;
+}
+.ficha-leitura-acoes .ficha-acao-suave { padding: 6px 8px; }
+@media (max-width: 520px) {
+  .ficha-leitura { padding: 12px; }
+  .ficha-leitura-rodape { grid-template-columns: minmax(0, 1fr) 112px; gap: 10px; }
+  .ficha-leitura-acoes { width: auto; min-width: 0; }
+}
+
+/* Histórico de atualizações: recolhido para preservar o visual aprovado. */
+.ficha-registros-progresso { margin-top: 12px; font-size: 11px; color: #6f786b; }
+.ficha-registros-progresso summary { cursor: pointer; width: fit-content; color: #49634b; font-weight: 600; }
+.ficha-registros-progresso ul { padding: 6px 0 0; margin: 0; list-style: none; }
+.ficha-registros-progresso li { display: flex; gap: 12px; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e6dfd3; }
+.ficha-registros-progresso li strong { color: #49634b; font-weight: 600; }
+
+/* Cartão horizontal de leitura aprovado e diário individual */
+.ficha-leitura { background: #faf8f4; border: 1px solid #e6dfd5; border-radius: 15px; padding: 15px; }
+.ficha-leitura-rodape { display: flex; flex-direction: column; gap: 11px; align-items: stretch; margin-top: 13px; }
+.ficha-leitura-acoes { display: flex; flex-direction: row; justify-content: flex-end; gap: 7px; width: 100%; }
+.ficha-leitura-acoes .ficha-acao-suave { width: auto; min-width: 0; padding: 7px 10px; font-size: 11px; background: #fffdf9; color: #354f3d; }
+.progresso-leitura { width: 100%; padding: 0; }
+.progresso-trilho { width: 100%; }
+.diario-pagina { max-width: 780px; margin: 22px auto; }
+.diario-cabecalho { margin: 24px 0; }
+.diario-cabecalho h3 { font: 600 30px 'Playfair Display', serif; color: #354f3d; margin: 7px 0; }
+.diario-cabecalho p { font-size: 13px; color: #82766b; }
+.diario-formulario,.diario-entrada { background: #faf8f4; border: 1px solid #e6dfd5; border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.diario-formulario { display: flex; flex-direction: column; gap: 13px; }
+.diario-formulario h4,.diario-pagina > h4 { color: #354f3d; font-size: 17px; }
+.diario-formulario .campo-livro { display: flex; flex-direction: column; gap: 7px; }
+.diario-formulario input[type="number"],.diario-formulario textarea { width: 100%; padding: 11px; border: 1px solid #dcd8ca; border-radius: 9px; background: #fff; font: inherit; }
+.diario-checkbox { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #82766b; }
+.diario-checkbox input { accent-color: #354f3d; }
+.diario-formulario .botao-primario { align-self: flex-end; }
+.diario-entrada-cabecalho { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 12px; color: #49634b; }
+.diario-entrada p { font-size: 13px; line-height: 1.65; white-space: pre-wrap; color: #514f47; }
+.diario-entrada details { font-size: 12px; margin-top: 12px; }
+.diario-entrada summary { cursor: pointer; }
+@media(max-width:520px) { .ficha-leitura-rodape { display: flex; } .ficha-leitura-acoes { flex-direction: row; } .diario-formulario,.diario-entrada { padding: 15px; } }
+
+/* Edição pontual de anotação no diário */
+.diario-edicao { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.diario-edicao > label { font-size:12px; font-weight:600; color:#354f3d; }
+.diario-edicao textarea { width:100%; border:1px solid #dcd8ca; border-radius:9px; padding:11px; font:inherit; background:#fff; resize:vertical; }
+.diario-edicao-acoes { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.diario-editar-registro { margin-top:9px; background:transparent; color:#49634b; border:0; padding:5px 0; text-decoration:underline; text-underline-offset:3px; cursor:pointer; font-size:12px; }
+
+.diario-registro-acoes { display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-top:8px; }
+.diario-registro-acoes .diario-editar-registro { margin-top:0; }
+.diario-excluir-registro { border:0; background:transparent; color:#926d61; padding:5px 0; font-size:12px; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.diario-excluir-registro:disabled { opacity:.55; cursor:wait; }
+.diario-excluir-registro:focus-visible { outline:2px solid #926d61; outline-offset:3px; }
+
+/* Citações favoritas em seção própria do diário */
+.citacoes-secao { margin:28px 0; }
+.citacoes-secao > h4 { color:#354f3d; font-size:18px; margin-bottom:14px; }
+.citacoes-lista { display:grid; gap:12px; }
+.citacao-card { margin:0; border:1px solid #e6dfd5; border-left:3px solid #819b7f; border-radius:12px; background:#faf8f4; padding:17px; }
+.citacao-card > p:first-child { margin:0 0 12px; font-family:'Playfair Display',serif; font-size:17px; line-height:1.55; color:#354f3d; white-space:pre-wrap; }
+.citacao-card small { color:#82766b; }
+.citacao-card .citacao-comentario { margin:10px 0 0; font-size:12px; color:#6c655d; white-space:pre-wrap; }
+
+/* Citações recolhidas até solicitação da pessoa leitora */
+.citacoes-cabecalho { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:13px; }
+.citacoes-cabecalho h4 { margin:0; color:#354f3d; font-size:18px; }
+.citacoes-cabecalho .botao-secundario { font-size:12px; padding:8px 12px; }
+
+/* Ações e edição dentro dos cartões de citações favoritas. */
+.citacao-card blockquote { margin:0; }
+.citacao-card blockquote > p:first-child { margin:0 0 12px; font-family:'Playfair Display',serif; font-size:17px; line-height:1.55; color:#354f3d; white-space:pre-wrap; }
+.citacao-card blockquote small { color:#82766b; }
+.citacao-card blockquote .citacao-comentario { margin:10px 0 0; font-size:12px; color:#6c655d; white-space:pre-wrap; }
+.citacao-card .diario-edicao input[type="number"] { width:100%; border:1px solid #dcd8ca; border-radius:9px; padding:10px; font:inherit; background:#fff; }
+
+/* Dialogos consistentes com o visual acolhedor da biblioteca */
+.aviso-personalizado { width:min(420px,calc(100vw - 32px)); text-align:center; padding:26px 26px 20px; border-radius:18px; background:#faf8f4; border:1px solid #e6dfd5; box-shadow:0 18px 55px #2f382a33; }
+.aviso-personalizado-icone { font-size:26px; margin-bottom:9px; }
+.aviso-personalizado h2 { font-family:'Playfair Display',serif; font-size:23px; color:#354f3d; margin:0 0 12px; }
+.aviso-personalizado p { font-size:13px; line-height:1.6; color:#686157; margin:0 0 24px; }
+.aviso-personalizado .modal-acoes { justify-content:center; gap:10px; }
+.botao-perigo { background:#886257; border:1px solid #886257; border-radius:9px; padding:10px 16px; color:white; font:inherit; cursor:pointer; }
+.botao-perigo:hover { background:#704b41; }
+.botao-perigo:focus-visible { outline:2px solid #886257; outline-offset:3px; }
+
+/* Painel inicial de estatísticas literárias */
+.estatisticas-painel { padding:20px 0 35px; }
+.estatisticas-intro { margin-bottom:23px; }
+.estatisticas-intro h3 { margin:7px 0; font-family:'Playfair Display',serif; color:#354f3d; font-size:29px; }
+.estatisticas-intro p,.estatisticas-bloco > p { font-size:13px; color:#82766b; line-height:1.5; }
+.estatisticas-resumo { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
+.estatistica-card { display:flex; flex-direction:column; gap:8px; background:#faf8f4; border:1px solid #e6dfd5; border-radius:15px; padding:20px; }
+.estatistica-card > span { color:#6b6c60; font-size:12px; font-weight:600; }
+.estatistica-card > strong { font:600 32px 'Playfair Display',serif; color:#354f3d; }
+.estatistica-card > small { color:#898278; line-height:1.4; font-size:11px; }
+.estatisticas-secoes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.estatisticas-bloco { border:1px solid #e6dfd5; border-radius:15px; padding:22px; background:#faf8f4; }
+.estatisticas-bloco h4 { font-family:'Playfair Display',serif; font-size:19px; color:#354f3d; margin:0 0 8px; }
+.estatisticas-barras { display:grid; gap:14px; margin-top:25px; }
+.estatisticas-barra-label { display:flex; justify-content:space-between; gap:8px; color:#595c50; font-size:12px; margin-bottom:7px; }
+.estatisticas-barra-label strong { color:#354f3d; }
+.estatisticas-trilho { background:#e7e6dc; height:8px; border-radius:99px; overflow:hidden; }
+.estatisticas-trilho > div { background:#819b7f; height:100%; border-radius:99px; }
+.estatisticas-vazio { font-size:12px; color:#82766b; padding:20px 0; line-height:1.6; }
+.estatisticas-nota { font-size:11px; color:#898278; margin-top:18px; }
+@media(max-width:1000px) { .estatisticas-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .estatisticas-resumo,.estatisticas-secoes { grid-template-columns:1fr; } .estatistica-card { padding:16px; } }
