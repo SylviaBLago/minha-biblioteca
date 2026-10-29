@@ -8,7 +8,7 @@ import FormularioLeitura, { type DadosLeitura } from './components/FormularioLei
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
@@ -30,6 +30,10 @@ export default function App() {
   const [detalhes, setDetalhes] = useState<Livro | null>(null);
   const [progresso, setProgresso] = useState<{ livro: Livro; leitura: HistoricoLeitura } | null>(null);
   const [paginaProgresso, setPaginaProgresso] = useState('');
+  const [diarioSelecionado, setDiarioSelecionado] = useState<{ livroId: string; leituraId: string } | null>(null);
+  const [diarioPagina, setDiarioPagina] = useState('');
+  const [diarioTexto, setDiarioTexto] = useState('');
+  const [diarioSpoiler, setDiarioSpoiler] = useState(false);
   const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
   const [pendente, setPendente] = useState<DadosLivro | null>(null);
@@ -219,6 +223,35 @@ export default function App() {
     } finally { salvandoRef.current = false; setSalvando(false); }
   }
 
+  async function salvarEntradaDiario() {
+    if (!diarioSelecionado || salvandoRef.current) return;
+    const livro = livros.find(v => v.id === diarioSelecionado.livroId);
+    const leitura = livro?.historico?.find(v => v.id === diarioSelecionado.leituraId);
+    if (!livro || !leitura) return;
+    const pagina = Number(diarioPagina);
+    if (!Number.isSafeInteger(pagina) || diarioPagina.trim() === '' || pagina < leitura.paginaAtual || (livro.paginas !== null && pagina > livro.paginas)) {
+      window.alert('Informe uma página válida, igual ou posterior à atual.'); return;
+    }
+    if (!diarioTexto.trim() && pagina === leitura.paginaAtual) {
+      window.alert('Escreva uma impressão ou atualize a página.'); return;
+    }
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        const registro = { id: crypto.randomUUID(), pagina, criadoEm: new Date().toISOString(), texto: diarioTexto.trim() || 'Atualização de progresso', contemSpoiler: diarioSpoiler };
+        if (!persistirLocal(livros.map(v => v.id === livro.id ? {
+          ...v, paginaAtual: pagina, historico: (v.historico ?? []).map(h => h.id === leitura.id ? { ...h, paginaAtual: pagina, atualizacoes: [registro, ...(h.atualizacoes ?? [])] } : h),
+        } : v))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await registrarDiarioSupabase(usuarioId, livro.id, leitura.id, pagina, diarioTexto, diarioSpoiler);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      setDiarioTexto(''); setDiarioSpoiler(false); setDiarioPagina(String(pagina));
+    } catch (erro) { setErroArmazenamento('Não foi possível registrar o diário: ' + (erro instanceof Error ? erro.message : String(erro))); }
+    finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
   function excluirLivro(livro: Livro) {
     if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
@@ -281,7 +314,28 @@ export default function App() {
             <div className="indicador"><span>Lista de desejos</span><strong>{livros.filter(l => l.desejo).length}</strong><small>Próximas descobertas</small></div>
           </section>
         </>}
-        <section className="secao-estante">
+        {pagina === 'diario' && diarioSelecionado && (() => {
+          const livro = livros.find(v => v.id === diarioSelecionado.livroId);
+          const leitura = livro?.historico?.find(v => v.id === diarioSelecionado.leituraId);
+          if (!livro || !leitura) return <p>Esta leitura não está mais disponível.</p>;
+          return <section className="diario-pagina">
+            <button type="button" className="botao-secundario" onClick={() => setDiarioSelecionado(null)}>← Voltar às leituras</button>
+            <div className="diario-cabecalho"><span className="subtitulo">MEU DIÁRIO DE LEITURA</span><h3>{livro.titulo}</h3><p>{ROTULOS_STATUS[leitura.status]} · {leitura.paginaAtual}{livro.paginas ? ` de ${livro.paginas}` : ''} páginas</p></div>
+            {leitura.status === 'lendo' && <form className="diario-formulario" onSubmit={e => { e.preventDefault(); void salvarEntradaDiario(); }}>
+              <h4>Novo registro</h4>
+              <div className="campo-livro"><label htmlFor="diario-pagina">Página atual</label><input id="diario-pagina" type="number" min={leitura.paginaAtual} max={livro.paginas ?? undefined} value={diarioPagina} onChange={e => setDiarioPagina(e.target.value)} required /></div>
+              <div className="campo-livro"><label htmlFor="diario-texto">Impressões da leitura</label><textarea id="diario-texto" rows={4} maxLength={10000} value={diarioTexto} onChange={e => setDiarioTexto(e.target.value)} placeholder="O que você está achando? Que detalhe chamou sua atenção?"/></div>
+              <label className="diario-checkbox"><input type="checkbox" checked={diarioSpoiler} onChange={e => setDiarioSpoiler(e.target.checked)}/> Contém spoilers</label>
+              <button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar registro'}</button>
+            </form>}
+            <h4>Minha trajetória</h4>
+            {(leitura.atualizacoes ?? []).length ? <div className="diario-entradas">{leitura.atualizacoes!.map(registro => <article key={registro.id} className="diario-entrada">
+              <div className="diario-entrada-cabecalho"><strong>Página {registro.pagina}</strong><span>{registro.criadoEm && !Number.isNaN(Date.parse(registro.criadoEm)) ? new Date(registro.criadoEm).toLocaleString('pt-BR') : 'Data não informada'}</span></div>
+              {registro.contemSpoiler ? <details><summary>Mostrar anotação com spoiler</summary><p>{registro.texto}</p></details> : <p>{registro.texto}</p>}
+            </article>)}</div> : <p>Esta leitura ainda não tem registros no diário.</p>}
+          </section>;
+        })()}
+        {!(pagina === 'diario' && diarioSelecionado) && <section className="secao-estante">
           <div className="secao-titulo"><div><span className="subtitulo">SUA COLEÇÃO</span><h3>{pagina === 'inicio' ? 'Minha estante' : titulos[pagina]}</h3></div><button className="botao-busca" onClick={() => { setBuscando(!buscando); setTermoBusca(''); }}><Search size={18} /> Buscar</button></div>
           {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} /></div>}
           {!carregandoLivros && !erroArmazenamento && livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
@@ -360,12 +414,24 @@ export default function App() {
                       <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
                       <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
                       {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
-                      {!!leitura.atualizacoes?.length && (
-                        <details className="ficha-registros-progresso">
-                          <summary>Atualizações de progresso ({leitura.atualizacoes.length})</summary>
-                          <ul>{leitura.atualizacoes.map(registro => (
-                            <li key={registro.id}><span>{registro.criadoEm && !Number.isNaN(Date.parse(registro.criadoEm)) ? new Date(registro.criadoEm).toLocaleString('pt-BR') : 'Data não informada'}</span><strong>Página {registro.pagina}</strong></li>
-                          ))}</ul>
+                      <div className="ficha-leitura-rodape">
+                        <div className="progresso-leitura">
+                          {detalhes.paginas !== null && detalhes.paginas > 0 ? (
+                            <>
+                              <div className="progresso-legenda"><span>{leitura.status === 'concluido' ? 'Leitura concluída' : `${leitura.paginaAtual} de ${detalhes.paginas} páginas`}</span><span>{leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, Math.round(leitura.paginaAtual / detalhes.paginas * 100)))}%</span></div>
+                              <div className="progresso-trilho" role="progressbar" aria-label="Progresso da leitura" aria-valuemin={0} aria-valuemax={100} aria-valuenow={leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, Math.round(leitura.paginaAtual / detalhes.paginas * 100)))}>
+                                <div className="progresso-preenchimento" style={{ width: `${leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, leitura.paginaAtual / detalhes.paginas * 100))}%` }} />
+                              </div>
+                            </>
+                          ) : <span className="progresso-sem-total">{leitura.paginaAtual} páginas registradas</span>}
+                        </div>
+                        <div className="ficha-leitura-acoes">
+                          <button type="button" className="ficha-acao-suave" onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar leitura</button>
+                          <button type="button" className="ficha-acao-suave" onClick={() => { setDiarioSelecionado({ livroId: detalhes.id, leituraId: leitura.id }); setDiarioPagina(String(leitura.paginaAtual)); setDetalhes(null); setPagina('diario'); }}>Abrir diário</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}</ul>
                         </details>
                       )}
                       <div className="ficha-leitura-rodape">
