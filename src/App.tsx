@@ -5,6 +5,7 @@ import Login from './components/Login';
 import RecuperarSenha from './components/RecuperarSenha';
 import FormularioLivro from './components/FormularioLivro';
 import FormularioLeitura, { type DadosLeitura } from './components/FormularioLeitura';
+import EstatisticasLiterarias from './components/EstatisticasLiterarias';
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
@@ -436,6 +437,7 @@ export default function App() {
             <div className="indicador"><span>Lista de desejos</span><strong>{livros.filter(l => l.desejo).length}</strong><small>Próximas descobertas</small></div>
           </section>
         </>}
+        {pagina === 'estatisticas' && <EstatisticasLiterarias livros={livros} />}
         {pagina === 'diario' && diarioSelecionado && (() => {
           const livro = livros.find(v => v.id === diarioSelecionado.livroId);
           const leitura = livro?.historico?.find(v => v.id === diarioSelecionado.leituraId);
@@ -490,7 +492,7 @@ export default function App() {
             </article>)}</div> : <p>Esta leitura ainda não tem registros no diário.</p>}
           </section>;
         })()}
-        {!(pagina === 'diario' && diarioSelecionado) && <section className="secao-estante">
+        {pagina !== 'estatisticas' && !(pagina === 'diario' && diarioSelecionado) && <section className="secao-estante">
           <div className="secao-titulo"><div><span className="subtitulo">SUA COLEÇÃO</span><h3>{pagina === 'inicio' ? 'Minha estante' : titulos[pagina]}</h3></div><button className="botao-busca" onClick={() => { setBuscando(!buscando); setTermoBusca(''); }}><Search size={18} /> Buscar</button></div>
           {buscando && <div className="busca-livros"><Search size={18} /><input autoFocus aria-label="Pesquisar livros" placeholder="Buscar por título, autor ou gênero..." value={termoBusca} onChange={e => setTermoBusca(e.target.value)} /></div>}
           {!carregandoLivros && !erroArmazenamento && livrosExibidos.length === 0 ? <div className="estado-vazio"><div className="estado-vazio-icone">📖</div><h3>{termoBusca ? 'Nenhum livro encontrado' : 'Uma estante esperando histórias...'}</h3><p>{termoBusca ? 'Tente outro título, autor ou gênero.' : 'Ainda não há livros nesta seção. Que tal começar adicionando um livro especial?'}</p><button className="botao-primario" onClick={() => { setEditando(null); setModalAberto(true); }}><Plus size={18} /> Adicionar livro</button></div>
