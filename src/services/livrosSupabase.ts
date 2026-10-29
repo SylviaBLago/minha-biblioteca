@@ -53,7 +53,7 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
   }
   const progressoPorLeitura = new Map<string, Linha[]>();
   for (const registro of diario) {
-    if (registro.texto !== 'Atualização de progresso' || registro.pagina == null) continue;
+    if (registro.pagina == null) continue;
     const id = String(registro.leitura_id);
     progressoPorLeitura.set(id, [...(progressoPorLeitura.get(id) ?? []), registro]);
   }
@@ -100,7 +100,7 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
           nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
           favorito: avaliacao?.favorito === true,
           resenha: String(avaliacao?.resenha ?? ''),
-          atualizacoes: (progressoPorLeitura.get(String(registro.id)) ?? []).map(p => ({ id: String(p.id), pagina: Number(p.pagina), criadoEm: String(p.criado_em ?? '') })),
+          atualizacoes: (progressoPorLeitura.get(String(registro.id)) ?? []).map(p => ({ id: String(p.id), pagina: Number(p.pagina), criadoEm: String(p.criado_em ?? ''), texto: String(p.texto ?? ''), contemSpoiler: p.contem_spoiler === true })),
           criadoEm: String(registro.criado_em ?? ''),
         };
       }),
@@ -281,4 +281,26 @@ export async function atualizarProgressoSupabase(livroId: string, leituraId: str
     texto: 'Atualização de progresso', contem_spoiler: false,
   });
   if (erroDiario) throw new EdicaoParcialError('registro do progresso no diário', erroDiario);
+}
+
+export async function registrarDiarioSupabase(usuarioId: string, livroId: string, leituraId: string, pagina: number, texto: string, contemSpoiler: boolean): Promise<void> {
+  if (!Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Página inválida.');
+  const { data: leitura, error } = await supabase.from('leituras').select('id,status,pagina_atual')
+    .eq('id', leituraId).eq('livro_id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (error || !leitura) throw new Error('Leitura não encontrada.');
+  if (leitura.status !== 'lendo') throw new Error('Somente leituras em andamento podem receber novo progresso.');
+  if (pagina < Number(leitura.pagina_atual ?? 0)) throw new Error('A página não pode retroceder.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas').eq('id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado.');
+  if (livro.paginas != null && pagina > Number(livro.paginas)) throw new Error('Página acima do total do livro.');
+  if (pagina !== Number(leitura.pagina_atual ?? 0)) {
+    const { data: atualizado, error: erroAtualizacao } = await supabase.from('leituras').update({ pagina_atual: pagina })
+      .eq('id', leituraId).eq('livro_id', livroId).eq('usuario_id', usuarioId)
+      .eq('pagina_atual', leitura.pagina_atual ?? 0).select('id').maybeSingle();
+    if (erroAtualizacao || !atualizado) throw new Error('Progresso alterado em outra sessão. Recarregue a página.');
+  }
+  const { error: erroRegistro } = await supabase.from('diario_leitura').insert({
+    usuario_id: usuarioId, leitura_id: leituraId, pagina, texto: texto.trim() || 'Atualização de progresso', contem_spoiler: contemSpoiler,
+  });
+  if (erroRegistro) throw new EdicaoParcialError('salvamento do diário', erroRegistro);
 }
