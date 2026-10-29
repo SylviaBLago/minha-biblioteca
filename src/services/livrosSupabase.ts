@@ -39,6 +39,11 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
     if (!formatos.includes(formato)) formatos.push(formato);
     formatosPorLivro.set(id, formatos);
   }
+  const historicoPorLivro = new Map<string, Linha[]>();
+  for (const leitura of [...leituras].sort(porCriacao)) {
+    const id = String(leitura.livro_id);
+    historicoPorLivro.set(id, [...(historicoPorLivro.get(id) ?? []), leitura]);
+  }
   const leituraPorLivro = new Map<string, Linha>();
   for (const l of [...leituras].sort(porCriacao)) {
     const id = String(l.livro_id);
@@ -71,6 +76,21 @@ export async function listarLivrosSupabase(usuarioId: string): Promise<Livro[]> 
       favorito: avaliacao?.favorito === true,
       nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
       criadoEm: String(l.criado_em ?? ''),
+      historico: (historicoPorLivro.get(id) ?? []).map((registro) => {
+        const avaliacao = avaliacaoPorLeitura.get(String(registro.id));
+        const estado = String(registro.status ?? 'quero_ler') as StatusLivro;
+        return {
+          id: String(registro.id),
+          status: statusPermitidos.includes(estado) ? estado : 'quero_ler',
+          paginaAtual: Number(registro.pagina_atual ?? 0),
+          dataInicio: registro.data_inicio == null ? null : String(registro.data_inicio),
+          dataFim: registro.data_fim == null ? null : String(registro.data_fim),
+          nota: avaliacao?.nota == null ? null : Number(avaliacao.nota),
+          favorito: avaliacao?.favorito === true,
+          resenha: String(avaliacao?.resenha ?? ''),
+          criadoEm: String(registro.criado_em ?? ''),
+        };
+      }),
     };
   }).sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
 }
