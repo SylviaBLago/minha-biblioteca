@@ -350,3 +350,33 @@ export async function salvarCitacaoSupabase(usuarioId: string, livroId: string, 
   });
   if (erroRegistro) throw new Error('Não foi possível salvar a citação: ' + erroRegistro.message);
 }
+
+/** Atualiza somente uma citação identificada, vinculada à leitura do usuário. */
+export async function editarCitacaoSupabase(usuarioId: string, leituraId: string, registroId: string, pagina: number, trecho: string, comentario: string): Promise<void> {
+  if (!trecho.trim() || !Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Informe o trecho e uma página válida.');
+  const { data: registro, error: erroBusca } = await supabase.from('diario_leitura').select('texto')
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId).maybeSingle();
+  if (erroBusca || !registro || !interpretarCitacao(String(registro.texto ?? ''))) throw new Error('Citação não encontrada.');
+  const { data: leitura, error: erroLeitura } = await supabase.from('leituras').select('livro_id')
+    .eq('id', leituraId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLeitura || !leitura) throw new Error('Leitura não encontrada.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas')
+    .eq('id', leitura.livro_id).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro || (livro.paginas != null && pagina > Number(livro.paginas))) throw new Error('Página maior que o total do livro.');
+  const texto = PREFIXO_CITACAO + JSON.stringify({ trecho: trecho.trim(), comentario: comentario.trim() });
+  const { data, error } = await supabase.from('diario_leitura').update({ pagina, texto })
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId)
+    .eq('texto', registro.texto).select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível editar a citação: ' + (error?.message ?? 'registro alterado em outra sessão'));
+}
+
+/** Exclui exclusivamente uma entrada marcada como citação. */
+export async function excluirCitacaoSupabase(usuarioId: string, leituraId: string, registroId: string): Promise<void> {
+  const { data: registro, error: erroBusca } = await supabase.from('diario_leitura').select('texto')
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId).maybeSingle();
+  if (erroBusca || !registro || !interpretarCitacao(String(registro.texto ?? ''))) throw new Error('Citação não encontrada.');
+  const { data, error } = await supabase.from('diario_leitura').delete()
+    .eq('id', registroId).eq('usuario_id', usuarioId).eq('leitura_id', leituraId)
+    .eq('texto', registro.texto).select('id').maybeSingle();
+  if (error || !data) throw new Error('Não foi possível excluir a citação: ' + (error?.message ?? 'registro alterado em outra sessão'));
+}
