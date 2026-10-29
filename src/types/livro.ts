@@ -1,7 +1,7 @@
 export type FormatoLivro = 'fisico' | 'ebook';
 export type StatusLivro = 'quero_ler' | 'lendo' | 'concluido' | 'pausado' | 'abandonado';
 
-export interface AtualizacaoProgresso { id: string; pagina: number; criadoEm: string; }
+export interface AtualizacaoProgresso { id: string; pagina: number; criadoEm: string; texto?: string; contemSpoiler?: boolean; }
 
 export interface HistoricoLeitura {
   id: string;
