@@ -751,3 +751,12 @@ button:focus-visible {
 .campo-livro .formulario-posse small { display: block; margin-top: 5px; max-width: 340px; }
 
 .observacao-exemplares { margin: -6px 0 0; font-size: 12px; color: #82766b; line-height: 1.5; }
+
+/* Histórico na ficha: apresentação somente leitura */
+.ficha-historico { border-top: 1px solid #e9dfd0; margin-top: 23px; padding-top: 20px; }
+.ficha-historico h3 { font: 600 21px 'Playfair Display', serif; color: #354f3d; margin: 0 0 15px; }
+.ficha-leitura { border: 1px solid #e9dfd0; background: #f7f3eb; border-radius: 12px; padding: 13px 15px; margin-bottom: 9px; }
+.ficha-leitura-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: #354f3d; }
+.ficha-leitura-topo span { background: #e5e9da; border-radius: 6px; padding: 5px 8px; font-size: 11px; }
+.ficha-leitura p, .ficha-sem-leituras, .ficha-ajuda { font-size: 12px; color: #766d63; line-height: 1.5; margin: 9px 0 0; }
+.ficha-leitura .ficha-resenha { border-top: 1px solid #e9dfd0; padding-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
