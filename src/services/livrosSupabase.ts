@@ -2,6 +2,16 @@ import type { DadosLeitura } from '../components/FormularioLeitura';
 import { supabase } from './supabase';
 import type { DadosLivro, Livro, FormatoLivro, StatusLivro } from '../types/livro';
 
+export const PREFIXO_CITACAO = 'MB_CITACAO_V1:';
+export function interpretarCitacao(texto: string): { trecho: string; comentario: string } | null {
+  if (!texto.startsWith(PREFIXO_CITACAO)) return null;
+  try {
+    const valor: unknown = JSON.parse(texto.slice(PREFIXO_CITACAO.length));
+    if (valor && typeof valor === 'object' && 'trecho' in valor && typeof valor.trecho === 'string' && 'comentario' in valor && typeof valor.comentario === 'string')
+      return { trecho: valor.trecho, comentario: valor.comentario };
+  } catch { /* Registro legado inválido não deve impedir a leitura. */ }
+  return null;
+}
 type Linha = Record<string, unknown>;
 const erroDe = (erro: unknown) => erro instanceof Error ? erro.message : String(erro);
 
@@ -321,4 +331,22 @@ export async function excluirAnotacaoSupabase(usuarioId: string, leituraId: stri
     .eq('usuario_id', usuarioId).eq('leitura_id', leituraId).eq('id', registroId)
     .select('id').maybeSingle();
   if (error || !data) throw new Error('Não foi possível excluir a anotação selecionada: ' + (error?.message ?? 'registro não encontrado'));
+}
+
+/** Citações têm representação própria em diario_leitura.texto, sem alterar o esquema. */
+export async function salvarCitacaoSupabase(usuarioId: string, livroId: string, leituraId: string, pagina: number, trecho: string, comentario: string): Promise<void> {
+  if (!trecho.trim()) throw new Error('Informe o trecho da citação.');
+  if (!Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Página inválida.');
+  const { data: leitura, error } = await supabase.from('leituras').select('id')
+    .eq('usuario_id', usuarioId).eq('livro_id', livroId).eq('id', leituraId).maybeSingle();
+  if (error || !leitura) throw new Error('Leitura não encontrada.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas')
+    .eq('usuario_id', usuarioId).eq('id', livroId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado.');
+  if (livro.paginas != null && pagina > Number(livro.paginas)) throw new Error('Página maior que o total do livro.');
+  const texto = PREFIXO_CITACAO + JSON.stringify({ trecho: trecho.trim(), comentario: comentario.trim() });
+  const { error: erroRegistro } = await supabase.from('diario_leitura').insert({
+    usuario_id: usuarioId, leitura_id: leituraId, pagina, texto, contem_spoiler: false,
+  });
+  if (erroRegistro) throw new Error('Não foi possível salvar a citação: ' + erroRegistro.message);
 }
