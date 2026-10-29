@@ -371,7 +371,7 @@ export default function App() {
               </div>
             </article>
           ))}</div>}
-        </section>
+        </section>}
       </main>
       {detalhes && (
         <div className="modal-fundo" onMouseDown={evento => { if (evento.target === evento.currentTarget) setDetalhes(null); }}>
