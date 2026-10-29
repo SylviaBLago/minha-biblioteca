@@ -869,3 +869,10 @@ button:focus-visible {
 .citacoes-cabecalho { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:13px; }
 .citacoes-cabecalho h4 { margin:0; color:#354f3d; font-size:18px; }
 .citacoes-cabecalho .botao-secundario { font-size:12px; padding:8px 12px; }
+
+/* Ações e edição dentro dos cartões de citações favoritas. */
+.citacao-card blockquote { margin:0; }
+.citacao-card blockquote > p:first-child { margin:0 0 12px; font-family:'Playfair Display',serif; font-size:17px; line-height:1.55; color:#354f3d; white-space:pre-wrap; }
+.citacao-card blockquote small { color:#82766b; }
+.citacao-card blockquote .citacao-comentario { margin:10px 0 0; font-size:12px; color:#6c655d; white-space:pre-wrap; }
+.citacao-card .diario-edicao input[type="number"] { width:100%; border:1px solid #dcd8ca; border-radius:9px; padding:10px; font:inherit; background:#fff; }
