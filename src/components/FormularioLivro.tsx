@@ -91,7 +91,7 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
               <div className="formulario-grade">
                 <div className="campo-livro"><label htmlFor="leitura-inicio">Data de início</label><input id="leitura-inicio" type="date" value={dados.dataInicio ?? ''} onChange={e => atualizar('dataInicio', e.target.value || null)} /></div>
                 {dados.status === 'concluido' && <div className="campo-livro"><label htmlFor="leitura-fim">Data de conclusão</label><input id="leitura-fim" type="date" value={dados.dataFim ?? ''} onChange={e => atualizar('dataFim', e.target.value || null)} /></div>}
-                <div className="campo-livro"><label htmlFor="leitura-pagina">Página atual</label><input id="leitura-pagina" type="number" min="0" max={dados.paginas ?? undefined} value={dados.paginaAtual ?? 0} onChange={e => atualizar('paginaAtual', e.target.value === '' ? 0 : Number(e.target.value))} /></div>
+                {dados.status === 'lendo' && <div className="campo-livro"><label htmlFor="leitura-pagina">Página atual</label><input id="leitura-pagina" type="number" min="0" max={dados.paginas ?? undefined} value={dados.paginaAtual ?? 0} onChange={e => atualizar('paginaAtual', e.target.value === '' ? 0 : Number(e.target.value))} /></div>}
               </div>
               <small>Preencha as datas conforme sua leitura. Nenhuma data é definida automaticamente.</small>
             </fieldset>
