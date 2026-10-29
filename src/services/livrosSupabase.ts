@@ -250,3 +250,26 @@ export async function salvarLeituraSupabase(livroId: string, usuarioId: string, 
     if (error) throw new EdicaoParcialError('avaliação da leitura', error);
   }
 }
+
+export async function atualizarProgressoSupabase(livroId: string, leituraId: string, usuarioId: string, pagina: number): Promise<void> {
+  if (!Number.isSafeInteger(pagina) || pagina < 0) throw new Error('Informe uma página válida.');
+  const { data: leitura, error: erroConsulta } = await supabase.from('leituras')
+    .select('id,pagina_atual,status').eq('id', leituraId).eq('livro_id', livroId)
+    .eq('usuario_id', usuarioId).maybeSingle();
+  if (erroConsulta || !leitura) throw new Error('Leitura não encontrada na sua conta.');
+  if (leitura.status !== 'lendo') throw new Error('O progresso só pode ser atualizado em leituras em andamento.');
+  if (pagina < Number(leitura.pagina_atual ?? 0)) throw new Error('O progresso não pode ser menor que a página atual.');
+  const { data: livro, error: erroLivro } = await supabase.from('livros').select('paginas')
+    .eq('id', livroId).eq('usuario_id', usuarioId).maybeSingle();
+  if (erroLivro || !livro) throw new Error('Livro não encontrado.');
+  if (livro.paginas != null && pagina > Number(livro.paginas)) throw new Error('A página não pode ultrapassar o total do livro.');
+  const { data: atualizado, error } = await supabase.from('leituras').update({ pagina_atual: pagina })
+    .eq('id', leituraId).eq('livro_id', livroId).eq('usuario_id', usuarioId)
+    .eq('pagina_atual', leitura.pagina_atual ?? 0).select('id').maybeSingle();
+  if (error || !atualizado) throw new Error('O progresso mudou em outra sessão ou não pôde ser salvo. Recarregue e tente novamente.');
+  const { error: erroDiario } = await supabase.from('diario_leitura').insert({
+    usuario_id: usuarioId, leitura_id: leituraId, pagina,
+    texto: 'Atualização de progresso', contem_spoiler: false,
+  });
+  if (erroDiario) throw new EdicaoParcialError('registro do progresso no diário', erroDiario);
+}
