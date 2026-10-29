@@ -23,6 +23,9 @@ function dadosIniciais(livro?: Livro | null): DadosLivro {
     desejo: livro?.desejo ?? false,
     favorito: livro?.favorito ?? false,
     nota: livro?.nota ?? null,
+    paginaAtual: livro?.paginaAtual ?? livro?.historico?.[0]?.paginaAtual ?? 0,
+    dataInicio: livro?.dataInicio ?? livro?.historico?.[0]?.dataInicio ?? null,
+    dataFim: livro?.dataFim ?? livro?.historico?.[0]?.dataFim ?? null,
   };
 }
 
@@ -44,6 +47,10 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     if (!dados.titulo.trim() || !dados.autor.trim()) return;
+    if (dados.dataInicio && dados.dataFim && dados.status === 'concluido' && dados.dataFim < dados.dataInicio) {
+      window.alert('A data de conclusão não pode ser anterior à data de início.');
+      return;
+    }
     aoSalvar({ ...dados, desejo: (dados.formatos ?? []).length === 0 && dados.desejo, titulo: dados.titulo.trim(), autor: dados.autor.trim(), genero: dados.genero.trim(), capa: dados.capa.trim() });
   }
 
@@ -78,6 +85,17 @@ export default function FormularioLivro({ livro, aoSalvar, aoFechar }: Props) {
             </div>
             <div className="campo-livro"><label htmlFor="livro-status">Status de leitura</label><select id="livro-status" value={dados.status} onChange={(e) => atualizar('status', e.target.value as StatusLivro)}>{(Object.entries(ROTULOS_STATUS) as [StatusLivro, string][]).map(([valor, rotulo]) => <option key={valor} value={valor}>{rotulo}</option>)}</select></div>
           </div>
+          {(dados.status === 'lendo' || dados.status === 'concluido') && (
+            <fieldset className="secao-informacoes-leitura">
+              <legend>Informações da leitura</legend>
+              <div className="formulario-grade">
+                <div className="campo-livro"><label htmlFor="leitura-inicio">Data de início</label><input id="leitura-inicio" type="date" value={dados.dataInicio ?? ''} onChange={e => atualizar('dataInicio', e.target.value || null)} /></div>
+                {dados.status === 'concluido' && <div className="campo-livro"><label htmlFor="leitura-fim">Data de conclusão</label><input id="leitura-fim" type="date" value={dados.dataFim ?? ''} onChange={e => atualizar('dataFim', e.target.value || null)} /></div>}
+                <div className="campo-livro"><label htmlFor="leitura-pagina">Página atual</label><input id="leitura-pagina" type="number" min="0" max={dados.paginas ?? undefined} value={dados.paginaAtual ?? 0} onChange={e => atualizar('paginaAtual', e.target.value === '' ? 0 : Number(e.target.value))} /></div>
+              </div>
+              <small>Preencha as datas conforme sua leitura. Nenhuma data é definida automaticamente.</small>
+            </fieldset>
+          )}
           <p className="observacao-exemplares">Deixe as duas opções desmarcadas se ainda não possui o livro. Ao marcar um exemplar, o livro sai automaticamente da lista de desejos.</p>
           <div className="campo-livro"><label htmlFor="livro-capa">Endereço da capa (URL)</label><input id="livro-capa" type="url" value={dados.capa} onChange={(e) => atualizar('capa', e.target.value)} placeholder="https://..." /><small>Opcional. Por enquanto, use o endereço de uma imagem disponível na internet.</small></div>
           <div className="formulario-grade">
