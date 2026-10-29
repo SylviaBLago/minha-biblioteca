@@ -29,7 +29,8 @@ export default function FormularioLeitura({ titulo, paginas, leitura, aoSalvar, 
     <section className="modal-livro" role="dialog" aria-modal="true" aria-labelledby="titulo-leitura">
       <header className="modal-cabecalho"><div><span className="subtitulo">HISTÓRICO DE LEITURAS</span>
         <h2 id="titulo-leitura">{leitura ? 'Editar leitura' : 'Nova leitura'}</h2>
-        <p>{titulo}</p></div>
+        <p>{titulo}</p>
+        {leitura && <p className="identificador-leitura">Registro selecionado: {leitura.id}</p>}</div>
         <button type="button" className="botao-icone" disabled={salvando} onClick={aoFechar} aria-label="Fechar"><X size={20}/></button>
       </header>
       <form className="formulario-livro" onSubmit={enviar}>
