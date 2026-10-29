@@ -8,7 +8,7 @@ import FormularioLeitura, { type DadosLeitura } from './components/FormularioLei
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase, excluirAnotacaoSupabase, salvarCitacaoSupabase, interpretarCitacao, PREFIXO_CITACAO } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase, excluirAnotacaoSupabase, salvarCitacaoSupabase, interpretarCitacao, PREFIXO_CITACAO, editarCitacaoSupabase, excluirCitacaoSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
@@ -38,6 +38,7 @@ export default function App() {
   const [citacaoComentario, setCitacaoComentario] = useState('');
   const [citacaoPagina, setCitacaoPagina] = useState('');
   const [formCitacaoAberto, setFormCitacaoAberto] = useState(false);
+  const [citacaoEditando, setCitacaoEditando] = useState<{id:string;leituraId:string;pagina:string;trecho:string;comentario:string}|null>(null);
   const [anotacaoEditando, setAnotacaoEditando] = useState<{ id: string; leituraId: string; texto: string; spoiler: boolean } | null>(null);
   const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
@@ -326,6 +327,50 @@ export default function App() {
     finally { salvandoRef.current = false; setSalvando(false); }
   }
 
+  async function salvarEdicaoCitacao() {
+    if (!citacaoEditando || !diarioSelecionado || salvandoRef.current) return;
+    const livro = livros.find(l => l.id === diarioSelecionado.livroId);
+    const pagina = Number(citacaoEditando.pagina);
+    if (!livro || !citacaoEditando.trecho.trim() || !citacaoEditando.pagina.trim() || !Number.isSafeInteger(pagina) || pagina < 0 || (livro.paginas !== null && pagina > livro.paginas)) {
+      window.alert('Informe o trecho e uma página válida.'); return;
+    }
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        if (!persistirLocal(livros.map(l => l.id !== livro.id ? l : { ...l, historico: (l.historico ?? []).map(h => h.id !== citacaoEditando.leituraId ? h : {
+          ...h, atualizacoes: (h.atualizacoes ?? []).map(reg => reg.id === citacaoEditando.id && interpretarCitacao(reg.texto ?? '') ? {
+            ...reg, pagina, texto: PREFIXO_CITACAO + JSON.stringify({ trecho: citacaoEditando.trecho.trim(), comentario: citacaoEditando.comentario.trim() }),
+          } : reg),
+        }) }))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await editarCitacaoSupabase(usuarioId, citacaoEditando.leituraId, citacaoEditando.id, pagina, citacaoEditando.trecho, citacaoEditando.comentario);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      setCitacaoEditando(null);
+    } catch (erro) { setErroArmazenamento('Não foi possível editar a citação: ' + (erro instanceof Error ? erro.message : String(erro))); }
+    finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
+  async function excluirCitacao(leituraId: string, registroId: string) {
+    if (!diarioSelecionado || salvandoRef.current) return;
+    if (!window.confirm('Excluir esta citação favorita? Esta ação não poderá ser desfeita. O progresso da leitura será mantido.')) return;
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        if (!persistirLocal(livros.map(l => l.id !== diarioSelecionado.livroId ? l : { ...l, historico: (l.historico ?? []).map(h => h.id !== leituraId ? h : {
+          ...h, atualizacoes: (h.atualizacoes ?? []).filter(reg => reg.id !== registroId || !interpretarCitacao(reg.texto ?? '')),
+        }) }))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await excluirCitacaoSupabase(usuarioId, leituraId, registroId);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      if (citacaoEditando?.id === registroId) setCitacaoEditando(null);
+    } catch (erro) { setErroArmazenamento('Não foi possível excluir a citação: ' + (erro instanceof Error ? erro.message : String(erro))); }
+    finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
   function excluirLivro(livro: Livro) {
     if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
@@ -413,7 +458,15 @@ export default function App() {
               <div className="citacoes-lista">{(leitura.atualizacoes ?? []).filter(r => interpretarCitacao(r.texto ?? '') !== null).map(registro => {
                 const citacao = interpretarCitacao(registro.texto ?? '');
                 if (!citacao) return null;
-                return <blockquote className="citacao-card" key={registro.id}><p>“{citacao.trecho}”</p><small>Página {registro.pagina}</small>{citacao.comentario && <p className="citacao-comentario">{citacao.comentario}</p>}</blockquote>;
+                return <div className="citacao-card" key={registro.id}>{citacaoEditando?.id === registro.id ? <form className="diario-edicao" onSubmit={e => { e.preventDefault(); void salvarEdicaoCitacao(); }}>
+                  <label htmlFor="citacao-editar-trecho">Trecho favorito</label><textarea id="citacao-editar-trecho" rows={3} maxLength={5000} required value={citacaoEditando.trecho} onChange={e => setCitacaoEditando(v => v ? {...v,trecho:e.target.value}:v)}/>
+                  <label htmlFor="citacao-editar-pagina">Página</label><input id="citacao-editar-pagina" type="number" min="0" max={livro.paginas ?? undefined} required value={citacaoEditando.pagina} onChange={e => setCitacaoEditando(v => v ? {...v,pagina:e.target.value}:v)}/>
+                  <label htmlFor="citacao-editar-comentario">Comentário (opcional)</label><textarea id="citacao-editar-comentario" rows={2} maxLength={3000} value={citacaoEditando.comentario} onChange={e => setCitacaoEditando(v => v ? {...v,comentario:e.target.value}:v)}/>
+                  <div className="diario-edicao-acoes"><button type="button" className="botao-secundario" disabled={salvando} onClick={() => setCitacaoEditando(null)}>Cancelar</button><button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</button></div>
+                </form> : <><blockquote><p>“{citacao.trecho}”</p><small>Página {registro.pagina}</small>{citacao.comentario && <p className="citacao-comentario">{citacao.comentario}</p>}</blockquote><div className="diario-registro-acoes">
+                  <button type="button" className="diario-editar-registro" onClick={() => setCitacaoEditando({id:registro.id,leituraId:leitura.id,pagina:String(registro.pagina),trecho:citacao.trecho,comentario:citacao.comentario})}>Editar citação</button>
+                  <button type="button" className="diario-excluir-registro" disabled={salvando} onClick={() => { void excluirCitacao(leitura.id,registro.id); }}>Excluir citação</button>
+                </div></>}</div>;
               })}</div>
             </section>
             <h4>Minha trajetória</h4>
