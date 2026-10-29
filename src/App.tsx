@@ -431,26 +431,6 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                  ))}</ul>
-                        </details>
-                      )}
-                      <div className="ficha-leitura-rodape">
-                        <div className="progresso-leitura">
-                          {detalhes.paginas !== null && detalhes.paginas > 0 ? (
-                            <>
-                              <div className="progresso-legenda"><span>{leitura.status === 'concluido' ? 'Leitura concluída' : `${leitura.paginaAtual} de ${detalhes.paginas} páginas`}</span><span>{leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, Math.round(leitura.paginaAtual / detalhes.paginas * 100)))}%</span></div>
-                              <div className="progresso-trilho" role="progressbar" aria-label="Progresso da leitura" aria-valuemin={0} aria-valuemax={100} aria-valuenow={leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, Math.round(leitura.paginaAtual / detalhes.paginas * 100)))}>
-                                <div className="progresso-preenchimento" style={{ width: `${leitura.status === 'concluido' ? 100 : Math.min(100, Math.max(0, leitura.paginaAtual / detalhes.paginas * 100))}%` }} />
-                              </div>
-                            </>
-                          ) : <span className="progresso-sem-total">{leitura.paginaAtual} páginas registradas</span>}
-                        </div>
-                        <div className="ficha-leitura-acoes">
-                          {leitura.status === 'lendo' && <button type="button" className="ficha-acao-suave" onClick={() => { setProgresso({ livro: detalhes, leitura }); setPaginaProgresso(String(leitura.paginaAtual)); setDetalhes(null); }}>Atualizar progresso</button>}
-                          <button type="button" className="ficha-acao-suave" aria-label={`Editar ${indice === realizadas.length - 1 ? 'primeira leitura' : 'leitura ' + (realizadas.length - indice)} de ${detalhes.titulo}`} onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar leitura</button>
-                        </div>
-                      </div>
-                    </div>
                   ))}
                 </section>
               ) : null;
