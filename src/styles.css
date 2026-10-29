@@ -909,3 +909,17 @@ button:focus-visible {
 .estatisticas-nota { font-size:11px; color:#898278; margin-top:18px; }
 @media(max-width:1000px) { .estatisticas-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:650px) { .estatisticas-resumo,.estatisticas-secoes { grid-template-columns:1fr; } .estatistica-card { padding:16px; } }
+
+
+/* Busca bibliográfica assistida */
+.busca-catalogo { padding: 14px; border: 1px solid var(--borda, #ded2c1); border-radius: 12px; background: rgba(166, 135, 95, .06); }
+.busca-catalogo .campo-livro label { display: flex; align-items: center; gap: 7px; }
+.busca-catalogo-estado { font-size: .86rem; margin: 8px 0; display: flex; align-items: center; gap: 6px; }
+.busca-catalogo-resultados { max-height: 280px; overflow-y: auto; margin-top: 8px; display: grid; gap: 5px; }
+.busca-catalogo-item { width: 100%; display: flex; gap: 11px; text-align: left; align-items: center; border: 1px solid rgba(130,100,70,.18); border-radius: 9px; background: var(--cor-fundo, #fffaf4); color: inherit; padding: 8px; cursor: pointer; font: inherit; }
+.busca-catalogo-item:hover, .busca-catalogo-item:focus-visible { border-color: #9a795c; background: #f5ede3; }
+.busca-catalogo-item img, .busca-catalogo-sem-capa { width: 43px; height: 60px; object-fit: cover; flex-shrink: 0; border-radius: 4px; }
+.busca-catalogo-sem-capa { display: grid; place-items: center; }
+.busca-catalogo-item span:last-child { min-width: 0; display: grid; gap: 4px; }
+.busca-catalogo-item strong { font-size: .9rem; }
+.busca-catalogo-item small { display: block; line-height: 1.45; font-size: .76rem; opacity: .78; }
