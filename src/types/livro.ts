@@ -1,6 +1,18 @@
 export type FormatoLivro = 'fisico' | 'ebook';
 export type StatusLivro = 'quero_ler' | 'lendo' | 'concluido' | 'pausado' | 'abandonado';
 
+export interface HistoricoLeitura {
+  id: string;
+  status: StatusLivro;
+  paginaAtual: number;
+  dataInicio: string | null;
+  dataFim: string | null;
+  nota: number | null;
+  favorito: boolean;
+  resenha: string;
+  criadoEm: string;
+}
+
 export interface Livro {
   id: string;
   titulo: string;
@@ -18,6 +30,7 @@ export interface Livro {
   favorito: boolean;
   nota: number | null;
   criadoEm: string;
+  historico?: HistoricoLeitura[];
 }
 
 export type DadosLivro = Omit<Livro, 'id' | 'criadoEm'>;
