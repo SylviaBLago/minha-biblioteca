@@ -886,3 +886,26 @@ button:focus-visible {
 .botao-perigo { background:#886257; border:1px solid #886257; border-radius:9px; padding:10px 16px; color:white; font:inherit; cursor:pointer; }
 .botao-perigo:hover { background:#704b41; }
 .botao-perigo:focus-visible { outline:2px solid #886257; outline-offset:3px; }
+
+/* Painel inicial de estatísticas literárias */
+.estatisticas-painel { padding:20px 0 35px; }
+.estatisticas-intro { margin-bottom:23px; }
+.estatisticas-intro h3 { margin:7px 0; font-family:'Playfair Display',serif; color:#354f3d; font-size:29px; }
+.estatisticas-intro p,.estatisticas-bloco > p { font-size:13px; color:#82766b; line-height:1.5; }
+.estatisticas-resumo { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
+.estatistica-card { display:flex; flex-direction:column; gap:8px; background:#faf8f4; border:1px solid #e6dfd5; border-radius:15px; padding:20px; }
+.estatistica-card > span { color:#6b6c60; font-size:12px; font-weight:600; }
+.estatistica-card > strong { font:600 32px 'Playfair Display',serif; color:#354f3d; }
+.estatistica-card > small { color:#898278; line-height:1.4; font-size:11px; }
+.estatisticas-secoes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.estatisticas-bloco { border:1px solid #e6dfd5; border-radius:15px; padding:22px; background:#faf8f4; }
+.estatisticas-bloco h4 { font-family:'Playfair Display',serif; font-size:19px; color:#354f3d; margin:0 0 8px; }
+.estatisticas-barras { display:grid; gap:14px; margin-top:25px; }
+.estatisticas-barra-label { display:flex; justify-content:space-between; gap:8px; color:#595c50; font-size:12px; margin-bottom:7px; }
+.estatisticas-barra-label strong { color:#354f3d; }
+.estatisticas-trilho { background:#e7e6dc; height:8px; border-radius:99px; overflow:hidden; }
+.estatisticas-trilho > div { background:#819b7f; height:100%; border-radius:99px; }
+.estatisticas-vazio { font-size:12px; color:#82766b; padding:20px 0; line-height:1.6; }
+.estatisticas-nota { font-size:11px; color:#898278; margin-top:18px; }
+@media(max-width:1000px) { .estatisticas-resumo { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .estatisticas-resumo,.estatisticas-secoes { grid-template-columns:1fr; } .estatistica-card { padding:16px; } }
