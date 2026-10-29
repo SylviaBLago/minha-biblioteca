@@ -786,14 +786,27 @@ button:focus-visible {
  .ficha-leitura-acoes .ficha-acao-suave { font-size: 10px; padding: 7px 6px; }
 }
 
-/* Ajuste fino: elevar discretamente os botões sem deslocar a barra. */
-.ficha-leitura-acoes { transform: translateY(-10px); }
-
-/* Ações próximas ao indicador de status no topo direito. */
-.ficha-leitura { position: relative; padding-right: 158px; min-height: 142px; }
-.ficha-leitura-rodape { display: block; margin-top: 13px; }
-.ficha-leitura-acoes { position: absolute; top: 49px; right: 15px; width: 128px; min-width: 0; transform: none; }
+/* Composição equilibrada: título e status no topo, barra ampla e ações no rodapé. */
+.ficha-leitura { position: static; padding: 13px 15px; min-height: 0; }
+.ficha-leitura-rodape {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  gap: 14px;
+  align-items: center;
+  margin-top: 11px;
+}
+.progresso-leitura { padding-bottom: 0; align-self: end; padding-bottom: 3px; }
+.ficha-leitura-acoes {
+  position: static;
+  width: auto;
+  min-width: 0;
+  transform: none;
+  gap: 5px;
+  align-self: center;
+}
+.ficha-leitura-acoes .ficha-acao-suave { padding: 6px 8px; }
 @media (max-width: 520px) {
-  .ficha-leitura { padding-right: 132px; }
-  .ficha-leitura-acoes { right: 12px; width: 112px; min-width: 0; }
+  .ficha-leitura { padding: 12px; }
+  .ficha-leitura-rodape { grid-template-columns: minmax(0, 1fr) 112px; gap: 10px; }
+  .ficha-leitura-acoes { width: auto; min-width: 0; }
 }
