@@ -360,6 +360,14 @@ export default function App() {
                       <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
                       <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
                       {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
+                      {!!leitura.atualizacoes?.length && (
+                        <details className="ficha-registros-progresso">
+                          <summary>Atualizações de progresso ({leitura.atualizacoes.length})</summary>
+                          <ul>{leitura.atualizacoes.map(registro => (
+                            <li key={registro.id}><span>{registro.criadoEm && !Number.isNaN(Date.parse(registro.criadoEm)) ? new Date(registro.criadoEm).toLocaleString('pt-BR') : 'Data não informada'}</span><strong>Página {registro.pagina}</strong></li>
+                          ))}</ul>
+                        </details>
+                      )}
                       <div className="ficha-leitura-rodape">
                         <div className="progresso-leitura">
                           {detalhes.paginas !== null && detalhes.paginas > 0 ? (
