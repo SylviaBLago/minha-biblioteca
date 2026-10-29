@@ -764,3 +764,24 @@ button:focus-visible {
 .secao-informacoes-leitura { border: 1px solid #e9dfd0; border-radius: 13px; margin: 2px 0; padding: 16px; min-width: 0; background: #f8f6f1; }
 .secao-informacoes-leitura legend { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 600; color: #354f3d; padding: 0 8px; }
 .secao-informacoes-leitura small { display: block; font-size: 11px; line-height: 1.5; color: #82766b; margin-top: 10px; }
+
+/* Progresso discreto e ações compactas na ficha de leitura */
+.ficha-leitura-rodape { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 16px; align-items: end; margin-top: 13px; }
+.progresso-leitura { min-width: 0; padding-bottom: 3px; }
+.progresso-legenda, .cartao-progresso-linha { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: #82766b; margin-bottom: 7px; }
+.progresso-legenda span:last-child, .cartao-progresso-linha span:last-child { color: #49634b; font-weight: 600; }
+.progresso-trilho { height: 5px; width: 100%; border-radius: 999px; overflow: hidden; background: #e1e5d9; }
+.progresso-preenchimento { height: 100%; border-radius: inherit; background: #819b7f; transition: width .2s ease; }
+.progresso-sem-total { color: #82766b; font-size: 11px; }
+.ficha-leitura-acoes { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 128px; }
+.ficha-leitura-acoes .ficha-acao-suave { border: 1px solid #dcd8ca; background: rgba(255,255,255,.52); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.25; color: #48634e; cursor: pointer; }
+.ficha-leitura-acoes .ficha-acao-suave:hover { background: #e9eee5; border-color: #b6c7b6; }
+.ficha-leitura-acoes .ficha-acao-suave:focus-visible { outline: 2px solid #49634b; outline-offset: 2px; }
+.cartao-progresso { margin-top: 11px; }
+.cartao-progresso-linha { font-size: 10px; margin-bottom: 5px; }
+.cartao-progresso .progresso-trilho { height: 4px; }
+@media (max-width: 520px) {
+ .ficha-leitura-rodape { grid-template-columns: minmax(0,1fr) auto; gap: 10px; }
+ .ficha-leitura-acoes { min-width: 112px; }
+ .ficha-leitura-acoes .ficha-acao-suave { font-size: 10px; padding: 7px 6px; }
+}
