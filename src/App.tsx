@@ -24,6 +24,9 @@ export default function App() {
   const [livros, setLivros] = useState<Livro[]>([]);
   const [carregandoLivros, setCarregandoLivros] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [avisoDialogo, setAvisoDialogo] = useState<{mensagem:string; titulo:string; aoConfirmar?:()=>void}|null>(null);
+  const avisar = (mensagem: string) => setAvisoDialogo({ titulo: 'Atenção', mensagem });
+  const confirmar = (titulo: string, mensagem: string, aoConfirmar: () => void) => setAvisoDialogo({ titulo, mensagem, aoConfirmar });
   const salvandoRef = useRef(false);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
@@ -103,7 +106,7 @@ export default function App() {
       return;
     }
     const { error } = await supabase.auth.signOut();
-    if (error) window.alert('Não foi possível encerrar a sessão. Tente novamente.');
+    if (error) avisar('Não foi possível encerrar a sessão. Tente novamente.');
   }
 
   function persistirLocal(proximos: Livro[]): boolean {
@@ -205,7 +208,7 @@ export default function App() {
     if (!progresso || salvandoRef.current) return;
     const pagina = Number(paginaProgresso);
     if (paginaProgresso.trim() === '' || !Number.isSafeInteger(pagina) || pagina < progresso.leitura.paginaAtual || (progresso.livro.paginas !== null && pagina > progresso.livro.paginas)) {
-      window.alert('Informe uma página válida, entre a página atual e o total do livro.');
+      avisar('Informe uma página válida, entre a página atual e o total do livro.');
       return;
     }
     if (pagina === progresso.leitura.paginaAtual) { setProgresso(null); return; }
@@ -236,10 +239,10 @@ export default function App() {
     if (!livro || !leitura) return;
     const pagina = Number(diarioPagina);
     if (!Number.isSafeInteger(pagina) || diarioPagina.trim() === '' || pagina < leitura.paginaAtual || (livro.paginas !== null && pagina > livro.paginas)) {
-      window.alert('Informe uma página válida, igual ou posterior à atual.'); return;
+      avisar('Informe uma página válida, igual ou posterior à atual.'); return;
     }
     if (!diarioTexto.trim() && pagina === leitura.paginaAtual) {
-      window.alert('Escreva uma impressão ou atualize a página.'); return;
+      avisar('Escreva uma impressão ou atualize a página.'); return;
     }
     salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
     try {
@@ -260,7 +263,7 @@ export default function App() {
 
   async function salvarEdicaoAnotacao() {
     if (!anotacaoEditando || salvandoRef.current || !diarioSelecionado) return;
-    if (!anotacaoEditando.texto.trim()) { window.alert('A anotação não pode ficar vazia.'); return; }
+    if (!anotacaoEditando.texto.trim()) { avisar('A anotação não pode ficar vazia.'); return; }
     salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
     try {
       if (modoLocal) {
@@ -284,7 +287,7 @@ export default function App() {
 
   async function excluirEntradaDiario(leituraId: string, registroId: string) {
     if (!diarioSelecionado || salvandoRef.current) return;
-    if (!window.confirm('Excluir esta anotação do diário? Esta ação não poderá ser desfeita. O progresso da leitura será mantido.')) return;
+    
     salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
     try {
       if (modoLocal) {
@@ -310,7 +313,7 @@ export default function App() {
     const leitura = livro?.historico?.find(l => l.id === diarioSelecionado.leituraId);
     const pagina = Number(citacaoPagina);
     if (!livro || !leitura || !citacaoTrecho.trim() || citacaoPagina.trim() === '' || !Number.isSafeInteger(pagina) || pagina < 0 || (livro.paginas !== null && pagina > livro.paginas)) {
-      window.alert('Informe o trecho e uma página válida.'); return;
+      avisar('Informe o trecho e uma página válida.'); return;
     }
     salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
     try {
@@ -332,7 +335,7 @@ export default function App() {
     const livro = livros.find(l => l.id === diarioSelecionado.livroId);
     const pagina = Number(citacaoEditando.pagina);
     if (!livro || !citacaoEditando.trecho.trim() || !citacaoEditando.pagina.trim() || !Number.isSafeInteger(pagina) || pagina < 0 || (livro.paginas !== null && pagina > livro.paginas)) {
-      window.alert('Informe o trecho e uma página válida.'); return;
+      avisar('Informe o trecho e uma página válida.'); return;
     }
     salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
     try {
@@ -354,7 +357,7 @@ export default function App() {
 
   async function excluirCitacao(leituraId: string, registroId: string) {
     if (!diarioSelecionado || salvandoRef.current) return;
-    if (!window.confirm('Excluir esta citação favorita? Esta ação não poderá ser desfeita. O progresso da leitura será mantido.')) return;
+    
     salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
     try {
       if (modoLocal) {
@@ -465,7 +468,7 @@ export default function App() {
                   <div className="diario-edicao-acoes"><button type="button" className="botao-secundario" disabled={salvando} onClick={() => setCitacaoEditando(null)}>Cancelar</button><button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar alterações'}</button></div>
                 </form> : <><blockquote><p>“{citacao.trecho}”</p><small>Página {registro.pagina}</small>{citacao.comentario && <p className="citacao-comentario">{citacao.comentario}</p>}</blockquote><div className="diario-registro-acoes">
                   <button type="button" className="diario-editar-registro" onClick={() => setCitacaoEditando({id:registro.id,leituraId:leitura.id,pagina:String(registro.pagina),trecho:citacao.trecho,comentario:citacao.comentario})}>Editar citação</button>
-                  <button type="button" className="diario-excluir-registro" disabled={salvando} onClick={() => { void excluirCitacao(leitura.id,registro.id); }}>Excluir citação</button>
+                  <button type="button" className="diario-excluir-registro" disabled={salvando} onClick={() => confirmar('Excluir citação?', 'Esta citação será removida definitivamente. Seu progresso e as demais citações serão preservados.', () => { void excluirCitacao(leitura.id, registro.id); })}>Excluir citação</button>
                 </div></>}</div>;
               })}</div>
             </section>
@@ -481,7 +484,7 @@ export default function App() {
                 {registro.contemSpoiler ? <details><summary>Mostrar anotação com spoiler</summary><p>{registro.texto}</p></details> : <p>{registro.texto}</p>}
                 <div className="diario-registro-acoes">
                   <button type="button" className="diario-editar-registro" onClick={() => setAnotacaoEditando({ id: registro.id, leituraId: leitura.id, texto: registro.texto ?? '', spoiler: registro.contemSpoiler ?? false })}>Editar anotação</button>
-                  <button type="button" className="diario-excluir-registro" disabled={salvando} onClick={() => { void excluirEntradaDiario(leitura.id, registro.id); }}>Excluir anotação</button>
+                  <button type="button" className="diario-excluir-registro" disabled={salvando} onClick={() => confirmar('Excluir anotação?', 'Esta anotação será removida definitivamente. Seu progresso e os outros registros serão preservados.', () => { void excluirEntradaDiario(leitura.id, registro.id); })}>Excluir anotação</button>
                 </div>
               </>}
             </article>)}</div> : <p>Esta leitura ainda não tem registros no diário.</p>}
@@ -606,6 +609,17 @@ export default function App() {
           </section>
         </div>
       )}
+      {avisoDialogo && <div className="modal-fundo" onMouseDown={evento => { if (evento.target === evento.currentTarget && !salvando) setAvisoDialogo(null); }}>
+        <section className="modal-livro aviso-personalizado" role="alertdialog" aria-modal="true" aria-labelledby="aviso-personalizado-titulo" aria-describedby="aviso-personalizado-texto">
+          <div className="aviso-personalizado-icone">🍃</div>
+          <h2 id="aviso-personalizado-titulo">{avisoDialogo.titulo}</h2>
+          <p id="aviso-personalizado-texto">{avisoDialogo.mensagem}</p>
+          <div className="modal-acoes">
+            {avisoDialogo.aoConfirmar && <button type="button" className="botao-secundario" onClick={() => setAvisoDialogo(null)}>Cancelar</button>}
+            <button type="button" className={avisoDialogo.aoConfirmar ? 'botao-perigo' : 'botao-primario'} onClick={() => { const acao = avisoDialogo.aoConfirmar; setAvisoDialogo(null); acao?.(); }}>{avisoDialogo.aoConfirmar ? 'Sim, excluir' : 'Entendi'}</button>
+          </div>
+        </section>
+      </div>}
       {aviso.length > 0 && pendente && <AvisoDuplicidade correspondencias={aviso} livros={livros} aoVoltar={() => setAviso([])} aoContinuar={() => { const dados = pendente; setAviso([]); setPendente(null); void salvarCadastro(dados, true); }} aoEditar={(livro) => { setAviso([]); setPendente(null); setEditando(livro); setModalAberto(true); }} />}
       {progresso && <div className="modal-fundo"><section className="modal-livro" role="dialog" aria-modal="true" aria-labelledby="titulo-progresso">
         <header className="modal-cabecalho"><div><span className="subtitulo">ACOMPANHAMENTO DE LEITURA</span><h2 id="titulo-progresso">Atualizar progresso</h2><p>{progresso.livro.titulo}</p></div><button type="button" className="botao-icone" disabled={salvando} onClick={() => setProgresso(null)}>✕</button></header>
