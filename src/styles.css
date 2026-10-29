@@ -760,3 +760,7 @@ button:focus-visible {
 .ficha-leitura-topo span { background: #e5e9da; border-radius: 6px; padding: 5px 8px; font-size: 11px; }
 .ficha-leitura p, .ficha-sem-leituras, .ficha-ajuda { font-size: 12px; color: #766d63; line-height: 1.5; margin: 9px 0 0; }
 .ficha-leitura .ficha-resenha { border-top: 1px solid #e9dfd0; padding-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.secao-informacoes-leitura { border: 1px solid #e9dfd0; border-radius: 13px; margin: 2px 0; padding: 16px; min-width: 0; background: #f8f6f1; }
+.secao-informacoes-leitura legend { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 600; color: #354f3d; padding: 0 8px; }
+.secao-informacoes-leitura small { display: block; font-size: 11px; line-height: 1.5; color: #82766b; margin-top: 10px; }
