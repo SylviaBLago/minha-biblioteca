@@ -8,7 +8,7 @@ import FormularioLeitura, { type DadosLeitura } from './components/FormularioLei
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase, excluirAnotacaoSupabase } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase, atualizarProgressoSupabase, registrarDiarioSupabase, editarAnotacaoSupabase, excluirAnotacaoSupabase, salvarCitacaoSupabase, interpretarCitacao, PREFIXO_CITACAO } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
 import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
@@ -34,6 +34,9 @@ export default function App() {
   const [diarioPagina, setDiarioPagina] = useState('');
   const [diarioTexto, setDiarioTexto] = useState('');
   const [diarioSpoiler, setDiarioSpoiler] = useState(false);
+  const [citacaoTrecho, setCitacaoTrecho] = useState('');
+  const [citacaoComentario, setCitacaoComentario] = useState('');
+  const [citacaoPagina, setCitacaoPagina] = useState('');
   const [anotacaoEditando, setAnotacaoEditando] = useState<{ id: string; leituraId: string; texto: string; spoiler: boolean } | null>(null);
   const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
@@ -299,6 +302,29 @@ export default function App() {
     } finally { salvandoRef.current = false; setSalvando(false); }
   }
 
+  async function guardarCitacao() {
+    if (!diarioSelecionado || salvandoRef.current) return;
+    const livro = livros.find(l => l.id === diarioSelecionado.livroId);
+    const leitura = livro?.historico?.find(l => l.id === diarioSelecionado.leituraId);
+    const pagina = Number(citacaoPagina);
+    if (!livro || !leitura || !citacaoTrecho.trim() || citacaoPagina.trim() === '' || !Number.isSafeInteger(pagina) || pagina < 0 || (livro.paginas !== null && pagina > livro.paginas)) {
+      window.alert('Informe o trecho e uma página válida.'); return;
+    }
+    salvandoRef.current = true; setSalvando(true); setErroArmazenamento('');
+    try {
+      if (modoLocal) {
+        const registro = { id: crypto.randomUUID(), pagina, criadoEm: new Date().toISOString(), texto: PREFIXO_CITACAO + JSON.stringify({ trecho: citacaoTrecho.trim(), comentario: citacaoComentario.trim() }), contemSpoiler: false };
+        if (!persistirLocal(livros.map(l => l.id === livro.id ? { ...l, historico: (l.historico ?? []).map(h => h.id === leitura.id ? { ...h, atualizacoes: [registro, ...(h.atualizacoes ?? [])] } : h) } : l))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await salvarCitacaoSupabase(usuarioId, livro.id, leitura.id, pagina, citacaoTrecho, citacaoComentario);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      setCitacaoTrecho(''); setCitacaoComentario(''); setCitacaoPagina('');
+    } catch (erro) { setErroArmazenamento('Não foi possível salvar a citação: ' + (erro instanceof Error ? erro.message : String(erro))); }
+    finally { salvandoRef.current = false; setSalvando(false); }
+  }
+
   function excluirLivro(livro: Livro) {
     if (!modoLocal) return;
     if (!window.confirm(`Excluir “${livro.titulo}” da biblioteca local?`)) return;
@@ -375,8 +401,22 @@ export default function App() {
               <label className="diario-checkbox"><input type="checkbox" checked={diarioSpoiler} onChange={e => setDiarioSpoiler(e.target.checked)}/> Contém spoilers</label>
               <button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar registro'}</button>
             </form>}
+            <section className="citacoes-secao">
+              <h4>Citações favoritas</h4>
+              <form className="diario-formulario" onSubmit={e => { e.preventDefault(); void guardarCitacao(); }}>
+                <div className="campo-livro"><label htmlFor="citacao-trecho">Trecho favorito</label><textarea id="citacao-trecho" rows={3} maxLength={5000} value={citacaoTrecho} onChange={e => setCitacaoTrecho(e.target.value)} required placeholder="Guarde aqui um trecho marcante do livro." /></div>
+                <div className="campo-livro"><label htmlFor="citacao-pagina">Página</label><input id="citacao-pagina" type="number" min="0" max={livro.paginas ?? undefined} value={citacaoPagina} onChange={e => setCitacaoPagina(e.target.value)} required /></div>
+                <div className="campo-livro"><label htmlFor="citacao-comentario">Comentário (opcional)</label><textarea id="citacao-comentario" rows={2} maxLength={3000} value={citacaoComentario} onChange={e => setCitacaoComentario(e.target.value)} /></div>
+                <button type="submit" className="botao-primario" disabled={salvando}>{salvando ? 'Salvando...' : 'Guardar citação'}</button>
+              </form>
+              <div className="citacoes-lista">{(leitura.atualizacoes ?? []).filter(r => interpretarCitacao(r.texto ?? '') !== null).map(registro => {
+                const citacao = interpretarCitacao(registro.texto ?? '');
+                if (!citacao) return null;
+                return <blockquote className="citacao-card" key={registro.id}><p>“{citacao.trecho}”</p><small>Página {registro.pagina}</small>{citacao.comentario && <p className="citacao-comentario">{citacao.comentario}</p>}</blockquote>;
+              })}</div>
+            </section>
             <h4>Minha trajetória</h4>
-            {(leitura.atualizacoes ?? []).length ? <div className="diario-entradas">{leitura.atualizacoes!.map(registro => <article key={registro.id} className="diario-entrada">
+            {(leitura.atualizacoes ?? []).some(registro => !interpretarCitacao(registro.texto ?? '')) ? <div className="diario-entradas">{leitura.atualizacoes!.filter(registro => !interpretarCitacao(registro.texto ?? '')).map(registro => <article key={registro.id} className="diario-entrada">
               <div className="diario-entrada-cabecalho"><strong>Página {registro.pagina}</strong><span>{registro.criadoEm && !Number.isNaN(Date.parse(registro.criadoEm)) ? new Date(registro.criadoEm).toLocaleString('pt-BR') : 'Data não informada'}</span></div>
               {anotacaoEditando?.id === registro.id ? <form className="diario-edicao" onSubmit={e => { e.preventDefault(); void salvarEdicaoAnotacao(); }}>
                 <label htmlFor="editar-anotacao">Editar anotação</label>
