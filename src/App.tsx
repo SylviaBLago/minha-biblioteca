@@ -285,17 +285,16 @@ export default function App() {
                     </div>
                   ))}
                 </section>
-              ) : (
-                <div className="ficha-sem-historico">
-                  <button type="button" className="botao-secundario" onClick={() => {
-                    setEditando({ ...detalhes, status: 'lendo', paginaAtual: 0, dataInicio: null, dataFim: null });
-                    setDetalhes(null);
-                    setModalAberto(true);
-                  }}><Plus size={17} /> Adicionar leitura</button>
-                </div>
-              );
+              ) : null;
             })()}
             <div className="modal-acoes ficha-acoes">
+              {!((detalhes.historico ?? []).some(leitura => leitura.status !== 'quero_ler' || leitura.dataInicio !== null || leitura.dataFim !== null || leitura.paginaAtual > 0)) && (
+                <button type="button" className="botao-primario" onClick={() => {
+                  setEditando({ ...detalhes, status: 'lendo', paginaAtual: 0, dataInicio: null, dataFim: null });
+                  setDetalhes(null);
+                  setModalAberto(true);
+                }}><Plus size={17} /> Adicionar leitura</button>
+              )}
               {modoLocal && <button type="button" className="botao-secundario" onClick={() => { const livro = detalhes; setDetalhes(null); excluirLivro(livro); }}><Trash2 size={16} /> Excluir livro local</button>}
               <button type="button" className="botao-secundario" onClick={() => setDetalhes(null)}>Fechar</button>
               <button type="button" className="botao-primario" onClick={() => { setEditando(detalhes); setDetalhes(null); setModalAberto(true); }}><Pencil size={16} /> Editar livro</button>
