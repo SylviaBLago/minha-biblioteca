@@ -785,3 +785,6 @@ button:focus-visible {
  .ficha-leitura-acoes { min-width: 112px; }
  .ficha-leitura-acoes .ficha-acao-suave { font-size: 10px; padding: 7px 6px; }
 }
+
+/* Ajuste fino: elevar discretamente os botões sem deslocar a barra. */
+.ficha-leitura-acoes { transform: translateY(-10px); }
