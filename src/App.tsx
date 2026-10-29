@@ -4,12 +4,13 @@ import { BookOpen, LibraryBig, Heart, BookMarked, ChartNoAxesColumn, Sparkles, P
 import Login from './components/Login';
 import RecuperarSenha from './components/RecuperarSenha';
 import FormularioLivro from './components/FormularioLivro';
+import FormularioLeitura, { type DadosLeitura } from './components/FormularioLeitura';
 import AvisoDuplicidade from './components/AvisoDuplicidade';
 import { supabase } from './services/supabase';
 import { carregarLivros, exportarLivros, novoLivro, salvarLivros } from './services/livrosLocais';
-import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase } from './services/livrosSupabase';
+import { cadastrarLivroSupabase, listarLivrosSupabase, CadastroParcialError, editarLivroSupabase, salvarLeituraSupabase } from './services/livrosSupabase';
 import { buscarDuplicatasSupabase, encontrarDuplicatas } from './services/verificarDuplicatas';
-import type { DadosLivro, Livro } from './types/livro';
+import type { DadosLivro, Livro, HistoricoLeitura } from './types/livro';
 import { ROTULOS_STATUS, formatosDoLivro } from './types/livro';
 
 type Pagina = 'inicio' | 'fisicos' | 'ebooks' | 'desejos' | 'diario' | 'estatisticas' | 'descobrir';
@@ -27,6 +28,7 @@ export default function App() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Livro | null>(null);
   const [detalhes, setDetalhes] = useState<Livro | null>(null);
+  const [leituraEmEdicao, setLeituraEmEdicao] = useState<{ livro: Livro; leitura: HistoricoLeitura | null } | null>(null);
   const [aviso, setAviso] = useState<import('./services/verificarDuplicatas').Duplicata[]>([]);
   const [pendente, setPendente] = useState<DadosLivro | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -146,6 +148,41 @@ export default function App() {
       setErroArmazenamento(erro instanceof CadastroParcialError
         ? erro.message
         : `Não foi possível concluir o cadastro ou atualizar a estante: ${String(erro instanceof Error ? erro.message : erro)}. Confira a estante antes de repetir.`);
+    } finally {
+      salvandoRef.current = false;
+      setSalvando(false);
+    }
+  }
+
+  async function salvarLeitura(dados: DadosLeitura) {
+    if (!leituraEmEdicao || salvandoRef.current) return;
+    salvandoRef.current = true;
+    setSalvando(true);
+    setErroArmazenamento('');
+    try {
+      const { livro, leitura } = leituraEmEdicao;
+      if (modoLocal) {
+        const id = leitura?.id ?? crypto.randomUUID();
+        const registro: HistoricoLeitura = {
+          id, ...dados, resenha: leitura?.resenha ?? '',
+          criadoEm: leitura?.criadoEm ?? new Date().toISOString(),
+        };
+        const historico = leitura
+          ? (livro.historico ?? []).map(v => v.id === id ? registro : v)
+          : [registro, ...(livro.historico ?? [])];
+        if (!persistirLocal(livros.map(v => v.id === livro.id ? {
+          ...v, historico, status: registro.status, nota: registro.nota,
+          favorito: registro.favorito, paginaAtual: registro.paginaAtual,
+          dataInicio: registro.dataInicio, dataFim: registro.dataFim,
+        } : v))) return;
+      } else {
+        if (!usuarioId) throw new Error('Sessão não encontrada.');
+        await salvarLeituraSupabase(livro.id, usuarioId, dados, leitura?.id);
+        setLivros(await listarLivrosSupabase(usuarioId));
+      }
+      setLeituraEmEdicao(null);
+    } catch (erro) {
+      setErroArmazenamento('Não foi possível salvar a leitura: ' + (erro instanceof Error ? erro.message : String(erro)));
     } finally {
       salvandoRef.current = false;
       setSalvando(false);
@@ -282,6 +319,7 @@ export default function App() {
                       <p>Início: {leitura.dataInicio ? leitura.dataInicio.split('-').reverse().join('/') : 'Não informado'} · Término: {leitura.dataFim ? leitura.dataFim.split('-').reverse().join('/') : 'Não informado'}</p>
                       <p>{leitura.status === 'lendo' ? `Página atual: ${leitura.paginaAtual} · ` : ''}Nota: {leitura.nota === null ? 'Sem avaliação' : `${leitura.nota.toLocaleString('pt-BR')}/10`}{leitura.favorito ? ' · ♥ Favorito' : ''}</p>
                       {leitura.resenha && <p className="ficha-resenha">{leitura.resenha}</p>}
+                      <button type="button" className="botao-secundario" onClick={() => { setLeituraEmEdicao({ livro: detalhes, leitura }); setDetalhes(null); }}>Editar esta leitura</button>
                     </div>
                   ))}
                 </section>
@@ -290,10 +328,14 @@ export default function App() {
             <div className="modal-acoes ficha-acoes">
               {!((detalhes.historico ?? []).some(leitura => leitura.status !== 'quero_ler' || leitura.dataInicio !== null || leitura.dataFim !== null || leitura.paginaAtual > 0)) && (
                 <button type="button" className="botao-primario" onClick={() => {
-                  setEditando({ ...detalhes, status: 'lendo', paginaAtual: 0, dataInicio: null, dataFim: null });
+                  setLeituraEmEdicao({ livro: detalhes, leitura: null });
                   setDetalhes(null);
-                  setModalAberto(true);
                 }}><Plus size={17} /> Adicionar leitura</button>
+              )}
+              {(detalhes.historico ?? []).some(leitura => leitura.status !== 'quero_ler' || leitura.dataInicio !== null || leitura.dataFim !== null || leitura.paginaAtual > 0) && (
+                <button type="button" className="botao-primario" onClick={() => {
+                  setLeituraEmEdicao({ livro: detalhes, leitura: null }); setDetalhes(null);
+                }}><Plus size={17}/> Nova leitura</button>
               )}
               {modoLocal && <button type="button" className="botao-secundario" onClick={() => { const livro = detalhes; setDetalhes(null); excluirLivro(livro); }}><Trash2 size={16} /> Excluir livro local</button>}
               <button type="button" className="botao-secundario" onClick={() => setDetalhes(null)}>Fechar</button>
@@ -303,6 +345,7 @@ export default function App() {
         </div>
       )}
       {aviso.length > 0 && pendente && <AvisoDuplicidade correspondencias={aviso} livros={livros} aoVoltar={() => setAviso([])} aoContinuar={() => { const dados = pendente; setAviso([]); setPendente(null); void salvarCadastro(dados, true); }} aoEditar={(livro) => { setAviso([]); setPendente(null); setEditando(livro); setModalAberto(true); }} />}
+      {leituraEmEdicao && <FormularioLeitura titulo={leituraEmEdicao.livro.titulo} paginas={leituraEmEdicao.livro.paginas} leitura={leituraEmEdicao.leitura} salvando={salvando} aoSalvar={salvarLeitura} aoFechar={() => { if (!salvando) setLeituraEmEdicao(null); }}/>}
       {modalAberto && <FormularioLivro key={editando?.id ?? 'novo'} livro={editando} aoSalvar={salvarCadastro} aoFechar={() => { if (!salvando) { setModalAberto(false); setEditando(null); } }} />}
     </div>
   );
